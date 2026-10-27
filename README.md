@@ -1,4 +1,5 @@
 Intelligent Sudoku Solver
+
 An extensible Python project for solving Sudoku puzzles with human-style logical deductions, mathematical constraint-solving algorithms, and eventually machine-learning-assisted strategies.
 
 The central goal is not merely to produce a completed grid, but to make the solving process correct, traceable, and explainable: every logical placement or candidate elimination should be supported by an explicit justification.
