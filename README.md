@@ -11,6 +11,7 @@ Project goals
 3. ML/LLM experiments: Investigate whether learned heuristics or LLM-assisted technique selection can improve existing solvers without compromising correctness.
 4. Puzzle input and visualization: Eventually support structured grids, image recognition, and interactive step-by-step explanations.
 Development roadmap
+
 Phase 1 — Human-style logical solver
 - [ ] Define a SudokuBoard representation and validate puzzle constraints.
 - [ ] Track candidate sets for empty cells.
@@ -20,6 +21,7 @@ Phase 1 — Human-style logical solver
 - [ ] Add advanced techniques (e.g., X-Wing, Swordfish, XY-Wing, coloring, and inference chains).
 - [ ] Preserve a reproducible solving history with human-readable explanations.
 - [ ] Add unit and integration tests for techniques, contradictions, and invalid inputs.
+
 Phase 2 — Mathematical constraint solvers
 - [ ] Implement baseline backtracking.
 - [ ] Add heuristics such as Minimum Remaining Values (MRV) and forward checking.
@@ -27,15 +29,18 @@ Phase 2 — Mathematical constraint solvers
 - [ ] Compare results with an established solver (e.g., Z3).
 - [ ] Benchmark solve time, search nodes, backtracks, and memory usage.
 - [ ] Evaluate combinations of logical preprocessing and search.
+
 Phase 3 — ML and LLM experiments
 - [ ] Establish benchmark datasets and reproducible evaluation procedures.
 - [ ] Test model-guided search or technique selection against conventional heuristics.
 - [ ] Explore structured explanations generated from verified deductions.
 - [ ] Measure correctness, computational cost, and performance gains.
+
 Future extensions
 - [ ] Read Sudoku puzzles from images using computer vision and digit recognition.
 - [ ] Build an interactive application for replaying deductions and requesting hints.
 - [ ] Allow users to choose which logical techniques the solver may use.
+
 Proposed repository structure
 The repository will grow incrementally. The initial package structure is planned as:
 intelligent-sudoku-solver/
@@ -65,7 +70,9 @@ intelligent-sudoku-solver/
 │       └── logical/
 └── data/
     └── puzzles/
+
 Future modules may include solvers/constraint/, solvers/hybrid/, ml/, vision/, explanation/, visualization/, and benchmarks/.
+
 Design principles
 - Correctness first: Never apply an unsupported elimination or placement. Validate the final grid independently.
 - Separate discovery from mutation: Techniques propose deductions; a central solver checks and applies them.
@@ -73,6 +80,7 @@ Design principles
 - Shared core: Logical, mathematical, and learned solvers use compatible puzzle representations.
 - Testability: Each technique and algorithm has focused tests and regression cases.
 - Reproducibility: Compare approaches on the same puzzles and report clearly defined metrics.
+
 Representation conventions
 - Classic 9 × 9 Sudoku, with digits 1 through 9.
 - Empty cells are represented by 0.
