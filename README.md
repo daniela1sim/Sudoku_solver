@@ -83,7 +83,7 @@ These are proposed follow-up tasks, not capabilities of the current application.
 
 **Repository maintenance**
 
-- [ ] Move the existing `src/sudoku/solvers/logical/test_fish_proof_independence.py` into the test tree after reviewing it; the default pytest configuration currently discovers only `tests/`.
+- [x] Move the independent fish-proof tests into `tests/solvers/logical/` so normal pytest discovery includes them.
 - [ ] Add continuous integration for core tests without vision dependencies and image tests with the optional packages, including Windows/Linux coverage.
 - [ ] Choose a license and add `LICENSE`; review distribution rights for image fixtures and any bundled recognition assets.
 - [ ] Move the legacy patch ZIP out of the Python source package and document whether it should be retained as a release artifact.
@@ -119,8 +119,9 @@ assert oracle.proves_elimination(puzzle, 0, 2, 1)
 Solution counts are capped by the requested limit. Finding a single solution
 with `limit=1` does not establish uniqueness. Deduction checks require the
 original puzzle to be satisfiable, so contradictions do not prove arbitrary
-moves. The oracle remains a library and testing facility; the interactive app
-continues to use the selected logical techniques for hints and replay.
+moves. The app uses the oracle to reject starting clues with no solution; it continues
+to use only the selected logical techniques for hints and replay. This initial
+check searches for one completion and does not establish uniqueness.
 
 See [the reference solver documentation](docs/reference_solver.md) for the full
 API, assumptions, audit examples, and performance considerations. The added files
@@ -224,7 +225,10 @@ optional `vision` packages shown above.
    original clues and starts a fresh history when loaded again.
 
 Uniqueness-based techniques are off by default. The optional uniqueness checkbox
-is an assumption supplied by the user, not a uniqueness check. When the solver
+is an assumption supplied by the user, not a uniqueness check. Starting a puzzle
+checks that at least one completion exists and reports impossible clues before
+generating a replay. A grid without duplicate clues can still have no solution.
+When the solver
 finds no further deduction within its techniques and search bounds, the app says
 so; that does not mean the puzzle is unsolvable.
 
@@ -284,7 +288,6 @@ Sudoku_solver/
 │       │       ├── solver.py       # Technique orchestration
 │       │       ├── verification.py # Deduction verification
 │       │       ├── fish_proofs.py
-│       │       ├── test_fish_proof_independence.py
 │       │       └── …              # Singles, subsets, fish, wings, ALS, chains,
 │       │                          # rectangles, coloring, and inference graphs
 │       ├── vision/
@@ -296,7 +299,7 @@ Sudoku_solver/
     ├── core/                      # Candidates and deductions
     ├── solvers/
     │   ├── constraint/            # Reference solver and oracle checks
-    │   └── logical/               # Techniques and deduction verification
+    │   └── logical/               # Techniques, verification, independent fish proofs
     └── vision/
         ├── test_reader.py
         └── fixtures/
@@ -310,7 +313,7 @@ Board validation lives in `core/board.py`; there is no separate `validator.py`.
 
 The image importer returns a draft to the browser for review. Once accepted,
 the draft enters the same `ReplaySession` and logical-solving flow as manual
-input. The exact reference solver is currently a separate library/testing tool.
+input. The exact reference solver also checks that starting clues admit at least one solution before replay generation. It does not supply replay moves or establish uniqueness in this check.
 
 ## Design principles
 
@@ -376,7 +379,7 @@ python -m pytest -q tests/vision tests/app/test_server.py
 
 The HTTP integration tests need permission to connect to temporary localhost
 servers. The default test discovery root is `tests/`, as configured in
-`pyproject.toml`; the fish-proof test currently under `src/` is not included.
+`pyproject.toml`, including the independent fish-proof regression tests.
 Benchmarks
 remain planned and will distinguish **human-style difficulty** from
 **algorithmic search complexity**, which need not correlate.

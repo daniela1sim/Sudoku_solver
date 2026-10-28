@@ -62,8 +62,10 @@ def test_api_rejects_bad_input_and_cross_origin_requests(server):
     assert post(server, '/api/start', {'puzzle': '11' + '0' * 79})[0] == 400
     assert post(server, '/api/start', {'puzzle': '0' * 81, 'allow_uniqueness': 'yes'})[0] == 400
     assert post(server, '/api/action', {'session': 'missing', 'action': 'hint'})[0] == 404
-    assert request(server, 'POST', '/api/start', '{}', {'Content-Type': 'text/plain'})[0] == 415
-    assert request(server, 'POST', '/api/start', '{}', {'Content-Type': 'application/json', 'Origin': 'https://example.com'})[0] == 403
+    # These checks reject headers before reading a body. Avoid an unread body
+    # causing a Windows TCP reset when the server closes the connection.
+    assert request(server, 'POST', '/api/start', None, {'Content-Type': 'text/plain'})[0] == 415
+    assert request(server, 'POST', '/api/start', None, {'Content-Type': 'application/json', 'Origin': 'https://example.com'})[0] == 403
     assert request(server, 'POST', '/api/start', '{', {'Content-Type': 'application/json'})[0] == 400
 
 
@@ -77,6 +79,17 @@ def test_api_technique_selection(server):
     assert status == 200 and response['total'] == 1 and response['techniques'] == ['Naked Single']
     assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unknown']})[0] == 400
     assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unique Rectangle Type 1']})[0] == 400
+
+
+def test_start_explains_unsatisfiable_image_clues(server):
+    # These match the supplied colored-grid image, including all empty cells.
+    # No duplicate givens exist, but the board has no completion.
+    puzzle = '147000003250001000309000000080020004000410020900000600003000009400002000001008007'
+    for techniques in [None, []]:
+        status, response = post(server, '/api/start', {'puzzle': puzzle, 'techniques': techniques})
+        assert status == 400
+        assert 'no solution with the current clues' in response['error']
+        assert not server.sessions
 
 
 def test_image_api_validates_upload_and_does_not_start_session(server, monkeypatch):

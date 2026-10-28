@@ -3,6 +3,7 @@
 from sudoku.core.board import SudokuBoard
 from sudoku.core.candidates import CandidateState
 from sudoku.app.techniques import selected_solver
+from sudoku.solvers.constraint import ReferenceSolver
 
 
 def describe(deduction):
@@ -22,7 +23,14 @@ def describe(deduction):
 class ReplaySession:
     def __init__(self, puzzle: str, *, allow_uniqueness: bool = False, techniques=None):
         self.solver = selected_solver(techniques, allow_uniqueness=allow_uniqueness)
-        self.states = [CandidateState(SudokuBoard.from_string(puzzle))]
+        board = SudokuBoard.from_string(puzzle)
+        if ReferenceSolver().solve(board) is None:
+            raise ValueError(
+                "This puzzle has no solution with the current clues. "
+                "Check the entered digits against the source image. "
+                "Even without duplicate clues, a grid can be impossible to complete."
+            )
+        self.states = [CandidateState(board)]
         self.steps = []
         self.cursor = 0
         self.pending = None
