@@ -4,7 +4,7 @@ An extensible Python project for solving Sudoku puzzles with **human-style logic
 
 The central goal is not merely to produce a completed grid, but to make the solving process **correct, traceable, and explainable**: every logical placement or candidate elimination should be supported by an explicit justification.
 
-> **Project status:** Active development. The explainable logical-solving engine and a growing library of advanced techniques are implemented; mathematical constraint solvers, computer vision, and ML/LLM components remain planned.
+> **Project status:** Active development. The explainable logical-solving engine, interactive hints/replay application, and an independent exact reference solver are implemented. Additional constraint-solving methods, computer vision, and ML/LLM components remain planned.
 
 ## Project goals
 
@@ -38,8 +38,9 @@ The central goal is not merely to produce a completed grid, but to make the solv
 
 ### Phase 2 — Mathematical constraint solvers
 
-- [ ] Implement baseline backtracking.
-- [ ] Add heuristics such as Minimum Remaining Values (MRV) and forward checking.
+- [x] Implement an independent reference solver using recursive backtracking.
+- [x] Add Minimum Remaining Values (MRV) search and row/column/box bitmasks.
+- [ ] Add forward checking and compare search heuristics.
 - [ ] Implement Algorithm X / exact cover.
 - [ ] Compare results with an established solver (e.g., Z3).
 - [ ] Benchmark solve time, search nodes, backtracks, and memory usage.
@@ -57,6 +58,53 @@ The central goal is not merely to produce a completed grid, but to make the solv
 - [ ] Read Sudoku puzzles from images using computer vision and digit recognition.
 - [x] Build an interactive application for replaying deductions and requesting hints.
 - [x] Allow users to choose which logical techniques the solver may use.
+
+## Independent reference solver
+
+The `sudoku.solvers.constraint` package provides an exact solver for checking
+solvability, uniqueness, and the truth of logical deductions. It uses deterministic
+backtracking with MRV and bitmasks, independently of the logical techniques,
+candidate tracker, and deduction verifier. It has no additional runtime dependencies.
+
+```python
+from sudoku.core.board import SudokuBoard
+from sudoku.solvers.constraint import ReferenceSolver
+
+puzzle = SudokuBoard.from_string(
+    "530070000600195000098000060800060003400803001"
+    "700020006060000280000419005000080079"
+)
+oracle = ReferenceSolver()
+solution = oracle.solve(puzzle)  # SudokuBoard, or None if unsatisfiable
+analysis = oracle.analyze(puzzle)  # Search for up to two solutions
+print(analysis.is_unique)
+print(analysis.has_multiple_solutions)
+print(analysis.is_unsatisfiable)
+print(analysis.statistics)
+
+# Check a deduction against the original clues (zero-based coordinates).
+assert oracle.forces_placement(puzzle, 0, 2, 4)
+assert oracle.proves_elimination(puzzle, 0, 2, 1)
+```
+
+Solution counts are capped by the requested limit. Finding a single solution
+with `limit=1` does not establish uniqueness. Deduction checks require the
+original puzzle to be satisfiable, so contradictions do not prove arbitrary
+moves. The oracle remains a library and testing facility; the interactive app
+continues to use the selected logical techniques for hints and replay.
+
+See [the reference solver documentation](docs/reference_solver.md) for the full
+API, assumptions, audit examples, and performance considerations. The added files
+are `src/sudoku/solvers/constraint/`, `tests/solvers/constraint/`, and
+`docs/reference_solver.md`; [PATCH_README.md](PATCH_README.md) preserves the supplied
+patch's application notes and its original validation context.
+
+Run its tests from the repository root:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m pytest -q tests/solvers/constraint
+```
 
 ## Interactive deduction studio
 
@@ -214,7 +262,9 @@ python -m pytest -q
 ```
 
 Tests cover candidate updates, logical techniques, deduction verification,
-hint previews, replay state restoration, and the local HTTP API. Benchmarks
+hint previews, replay state restoration, technique selection, the local HTTP API,
+reference-solver solution counting and assumptions, and independent audits of
+logical deductions against original clues. Benchmarks
 remain planned and will distinguish **human-style difficulty** from
 **algorithmic search complexity**, which need not correlate.
 
