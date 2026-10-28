@@ -16,7 +16,8 @@ from sudoku.solvers.logical.locked_candidates import LockedCandidates, Pointing,
 from sudoku.solvers.logical.disjoint_groups import DisjointGroups
 from sudoku.solvers.logical.fish import BasicFish, XWing, Swordfish, Jellyfish
 from sudoku.solvers.logical.strong_links import Skyscraper, TwoStringKite, Crane, _strong_link_patterns
-from sudoku.solvers.logical.wings import XYWing, XYZWing, WWing, _wing_patterns
+from sudoku.solvers.logical.wings import XYWing, XYZWing, WWing
+from sudoku.solvers.logical.wing_proofs import verify_wing
 from sudoku.solvers.logical.rectangles import EmptyRectangle, UniqueRectangleType1, UniqueRectangleType2, UniqueRectangleType3, UniqueRectangleType4, UniqueRectangleType5, UniqueRectangleType6, HiddenUniqueRectangle, _hidden_rectangle_patterns, _empty_rectangle_patterns, _UNIQUE_RECTANGLE_PATTERNS
 from sudoku.solvers.logical.finned_fish import FinnedXWing, FinnedSwordfish, FinnedJellyfish
 from sudoku.solvers.logical.fish_proofs import (
@@ -625,16 +626,8 @@ class DeductionVerifier:
     def _verify_wings(
         state: CandidateState, technique: LogicalTechnique, deduction: Deduction
     ) -> None:
-        """Check pattern geometry and each proposed elimination against candidate state."""
-        if (deduction.technique != technique.name or deduction.placements
-                or len(deduction.premises) != 1 or not deduction.eliminations):
-            raise ValueError("Unexpected wing deduction shape")
-        premise = deduction.premises[0]
-        for cells, digits, effects, _ in _wing_patterns(state, technique.name):
-            if (premise.cells == cells and premise.digits == digits
-                    and set(deduction.eliminations).issubset(effects)):
-                return
-        raise ValueError("Wing elimination is not justified")
+        """Check the proposed Wing witness, without invoking the detector."""
+        verify_wing(state, deduction, name=technique.name)
 
     @staticmethod
     def _verify_new_patterns(state: CandidateState, technique: LogicalTechnique, deduction: Deduction) -> None:

@@ -84,6 +84,7 @@ These are proposed follow-up tasks, not capabilities of the current application.
 **Repository maintenance**
 
 - [x] Move the independent fish-proof tests into `tests/solvers/logical/` so normal pytest discovery includes them.
+- [x] Verify XY-Wing, XYZ-Wing, and W-Wing directly from proof witnesses without rerunning their detectors.
 - [ ] Add continuous integration for core tests without vision dependencies and image tests with the optional packages, including Windows/Linux coverage.
 - [ ] Choose a license and add `LICENSE`; review distribution rights for image fixtures and any bundled recognition assets.
 - [ ] Move the legacy patch ZIP out of the Python source package and document whether it should be retained as a release artifact.
@@ -119,9 +120,9 @@ assert oracle.proves_elimination(puzzle, 0, 2, 1)
 Solution counts are capped by the requested limit. Finding a single solution
 with `limit=1` does not establish uniqueness. Deduction checks require the
 original puzzle to be satisfiable, so contradictions do not prove arbitrary
-moves. The app uses the oracle to reject starting clues with no solution; it continues
-to use only the selected logical techniques for hints and replay. This initial
-check searches for one completion and does not establish uniqueness.
+moves. The oracle is available for library clients and tests. The app attempts
+the selected logical techniques even if the starting puzzle has no solution;
+it does not require an exact-solver precheck.
 
 See [the reference solver documentation](docs/reference_solver.md) for the full
 API, assumptions, audit examples, and performance considerations. The added files
@@ -225,9 +226,14 @@ optional `vision` packages shown above.
    original clues and starts a fresh history when loaded again.
 
 Uniqueness-based techniques are off by default. The optional uniqueness checkbox
-is an assumption supplied by the user, not a uniqueness check. Starting a puzzle
-checks that at least one completion exists and reports impossible clues before
-generating a replay. A grid without duplicate clues can still have no solution.
+is an assumption supplied by the user, not a uniqueness check. If a deduction
+would create a contradiction, the app retains the successful steps and opens at
+the final deduction that exposes the contradiction, including its resulting
+board and candidates. No further deductions are attempted. The message
+identifies the contradiction, and Back/the timeline can revisit earlier steps.
+A grid without duplicate clues can still have no solution. Malformed grids,
+duplicate givens, and contradictions already present in the initial candidate
+state are still rejected before replay.
 When the solver
 finds no further deduction within its techniques and search bounds, the app says
 so; that does not mean the puzzle is unsolvable.
@@ -288,6 +294,7 @@ Sudoku_solver/
 │       │       ├── solver.py       # Technique orchestration
 │       │       ├── verification.py # Deduction verification
 │       │       ├── fish_proofs.py
+│       │       ├── wing_proofs.py # Witness-directed Wing verification
 │       │       └── …              # Singles, subsets, fish, wings, ALS, chains,
 │       │                          # rectangles, coloring, and inference graphs
 │       ├── vision/
@@ -299,7 +306,7 @@ Sudoku_solver/
     ├── core/                      # Candidates and deductions
     ├── solvers/
     │   ├── constraint/            # Reference solver and oracle checks
-    │   └── logical/               # Techniques, verification, independent fish proofs
+    │   └── logical/               # Techniques, verification, independent fish/wing proofs
     └── vision/
         ├── test_reader.py
         └── fixtures/
@@ -313,7 +320,9 @@ Board validation lives in `core/board.py`; there is no separate `validator.py`.
 
 The image importer returns a draft to the browser for review. Once accepted,
 the draft enters the same `ReplaySession` and logical-solving flow as manual
-input. The exact reference solver also checks that starting clues admit at least one solution before replay generation. It does not supply replay moves or establish uniqueness in this check.
+input. Replay records successful deductions one at a time and retains partial
+progress and a diagnostic final step if a later move causes a candidate contradiction. The exact reference
+solver remains available separately for solvability and uniqueness checks.
 
 ## Design principles
 
@@ -442,6 +451,26 @@ eliminations, which are checked by `DeductionVerifier` before execution:
 
 These techniques are appended to the default solver's priority order after
 Skyscraper, 2-String Kite and Crane.
+
+Wing verification is witness-directed: `wing_proofs.py` checks the supplied
+premise cells, their live candidate sets, peer geometry, and each elimination.
+W-Wing also requires an actual conjugate pair in a row, column, or box.
+`DeductionVerifier` delegates these checks to `verify_wing` without importing
+or rerunning the Wing detector's `_wing_patterns` helper. Explanatory text alone
+is not accepted as evidence. Stale candidates, malformed witnesses, invalid
+geometry, and placement effects are rejected; justified subsets of a pattern's
+eliminations are accepted.
+
+The patch retains independent Fish verification through `fish_proofs.py`.
+Regression tests in `tests/solvers/logical/test_wing_proof_independence.py`
+disable discovery helpers during verification, exercise forged witnesses and
+W-Wing conjugate links, and audit real-puzzle effects with `ReferenceSolver`.
+See [the Wing verification patch notes](WING_VERIFICATION_PATCH_README.md).
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m pytest -q tests/solvers/logical/test_wings.py tests/solvers/logical/test_wing_proof_independence.py
+```
 
 ### Advanced rectangle and finned-fish techniques
 

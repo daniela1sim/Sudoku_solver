@@ -9,6 +9,10 @@ from __future__ import annotations
 from sudoku.core.board import Cell, SudokuBoard
 
 
+class CandidateContradiction(ValueError):
+    """A candidate update leaves a cell or unit with no legal completion."""
+
+
 class CandidateState:
     """A board and its remaining candidates, kept in sync.
 
@@ -61,13 +65,14 @@ class CandidateState:
     def _assert_consistent(self) -> None:
         """Reject empty candidate sets and digits with no place in a unit."""
         if any(not candidates for candidates in self._candidates.values()):
-            raise ValueError("Contradiction: an empty cell has no candidates")
-        for unit in self._units():
+            raise CandidateContradiction("Contradiction: an empty cell has no candidates")
+        for index, unit in enumerate(self._units()):
             placed = {self._board.value_at(*cell) for cell in unit} - {0}
             for digit in SudokuBoard.DIGITS - placed:
                 if not any(digit in self._candidates.get(cell, ()) for cell in unit):
-                    raise ValueError(
-                        f"Contradiction: digit {digit} has no possible position in a unit"
+                    name = ('row', 'column', 'box')[index // 9]
+                    raise CandidateContradiction(
+                        f"Contradiction: digit {digit} has no possible position in {name} {index % 9 + 1}"
                     )
 
     def eliminate(self, row: int, col: int, digit: int) -> bool:
@@ -86,7 +91,8 @@ class CandidateState:
         self._candidates[cell].remove(digit)
         try:
             self._assert_consistent()
-        except ValueError:
+        except CandidateContradiction as exc:
+            exc.state = self.copy()
             self._candidates[cell].add(digit)
             raise
         return True
@@ -111,7 +117,8 @@ class CandidateState:
         self._board, self._candidates = next_board, next_candidates
         try:
             self._assert_consistent()
-        except ValueError:
+        except CandidateContradiction as exc:
+            exc.state = self.copy()
             self._board, self._candidates = original_board, original_candidates
             raise
 

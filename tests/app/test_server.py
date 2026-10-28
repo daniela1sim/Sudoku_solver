@@ -81,15 +81,18 @@ def test_api_technique_selection(server):
     assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unique Rectangle Type 1']})[0] == 400
 
 
-def test_start_explains_unsatisfiable_image_clues(server):
+def test_start_keeps_partial_replay_for_unsatisfiable_image_clues(server):
     # These match the supplied colored-grid image, including all empty cells.
     # No duplicate givens exist, but the board has no completion.
     puzzle = '147000003250001000309000000080020004000410020900000600003000009400002000001008007'
-    for techniques in [None, []]:
-        status, response = post(server, '/api/start', {'puzzle': puzzle, 'techniques': techniques})
-        assert status == 400
-        assert 'no solution with the current clues' in response['error']
-        assert not server.sessions
+    status, response = post(server, '/api/start', {'puzzle': puzzle})
+    assert status == 200
+    assert response['status'] == 'contradiction'
+    assert response['cursor'] == response['total'] == 4
+    assert 'digit 2' in response['contradiction']
+    assert len(response['history']) == 4
+    status, response = post(server, '/api/start', {'puzzle': puzzle, 'techniques': []})
+    assert status == 200 and response['status'] == 'stuck'
 
 
 def test_image_api_validates_upload_and_does_not_start_session(server, monkeypatch):

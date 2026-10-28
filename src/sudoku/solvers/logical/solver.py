@@ -6,12 +6,12 @@ families need verifier support before they can safely be registered.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from collections.abc import Iterable
 
 from sudoku.core.board import SudokuBoard
-from sudoku.core.candidates import CandidateState
+from sudoku.core.candidates import CandidateState, CandidateContradiction
 from sudoku.core.deduction import Deduction
 from sudoku.solvers.logical.base import LogicalTechnique
 from sudoku.solvers.logical.singles import HiddenSingle, NakedSingle
@@ -135,10 +135,21 @@ class LogicalSolver:
             technique, deduction = selected
             DeductionVerifier.verify(state, technique, deduction)
             candidate = state.copy()
-            for move in deduction.placements:
-                candidate.place(*move.cell, move.digit)
-            for move in deduction.eliminations:
-                candidate.eliminate(*move.cell, move.digit)
+            placements, eliminations = [], []
+            try:
+                for move in deduction.placements:
+                    placements.append(move)
+                    candidate.place(*move.cell, move.digit)
+                for move in deduction.eliminations:
+                    eliminations.append(move)
+                    candidate.eliminate(*move.cell, move.digit)
+            except CandidateContradiction as exc:
+                # Diagnostic snapshot includes only effects attempted through
+                # the contradiction. Normal solving still raises atomically.
+                attempted = replace(deduction, placements=tuple(placements),
+                                    eliminations=tuple(eliminations))
+                exc.step = SolveStep(attempted, state.copy(), exc.state)
+                raise
             history.append(SolveStep(deduction, state.copy(), candidate.copy()))
             state = candidate
 

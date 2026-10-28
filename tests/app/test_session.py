@@ -11,6 +11,36 @@ from sudoku.solvers.logical.solver import LogicalSolver
 SOLVED = '534678912672195348198342567859761423426853791713924856961537284287419635345286179'
 
 
+def test_contradiction_keeps_last_consistent_state_and_replay():
+    puzzle = '147000003250001000309000000080020004000410020900000600003000009400002000001008007'
+    session = ReplaySession(puzzle)
+    final = session.act('replay')
+    assert final['status'] == 'contradiction'
+    assert final['cursor'] == final['total'] == 4
+    assert final['grid'][19] == '6'  # R3C2
+    assert final['grid'][11] == '8'  # R2C3
+    assert final['grid'][17] == '6'  # R2C9
+    assert final['grid'][47] == '4'  # Show the hidden single exposing the contradiction.
+    assert final['contradiction']
+    assert session.act('replay') == final
+    assert session.act('hint') == final
+    assert session.act('next') == final
+    initial = session.act('seek', 0)
+    assert initial['grid'] == puzzle and initial['status'] == 'ready'
+    assert initial['contradiction'] is None
+    assert session.act('seek', 4) == final
+
+
+def test_verification_failure_is_not_treated_as_puzzle_contradiction(monkeypatch):
+    session = ReplaySession('00' + SOLVED[2:])
+    def fail(*args, **kwargs):
+        raise ValueError('Invalid deduction witness')
+    monkeypatch.setattr(session.solver, 'solve', fail)
+    with pytest.raises(ValueError, match='Invalid deduction witness'):
+        session.act('replay')
+    assert session.contradiction is None
+
+
 def test_hint_is_read_only_and_cached_then_applied():
     session = ReplaySession('00' + SOLVED[2:])
     before = session.view()

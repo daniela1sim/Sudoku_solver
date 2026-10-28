@@ -1,9 +1,8 @@
 """Replay sessions retain candidate eliminations and preview verified hints."""
 
 from sudoku.core.board import SudokuBoard
-from sudoku.core.candidates import CandidateState
+from sudoku.core.candidates import CandidateState, CandidateContradiction
 from sudoku.app.techniques import selected_solver
-from sudoku.solvers.constraint import ReferenceSolver
 
 
 def describe(deduction):
@@ -24,23 +23,24 @@ class ReplaySession:
     def __init__(self, puzzle: str, *, allow_uniqueness: bool = False, techniques=None):
         self.solver = selected_solver(techniques, allow_uniqueness=allow_uniqueness)
         board = SudokuBoard.from_string(puzzle)
-        if ReferenceSolver().solve(board) is None:
-            raise ValueError(
-                "This puzzle has no solution with the current clues. "
-                "Check the entered digits against the source image. "
-                "Even without duplicate clues, a grid can be impossible to complete."
-            )
         self.states = [CandidateState(board)]
         self.steps = []
         self.cursor = 0
         self.pending = None
         self.stuck = False
+        self.contradiction = None
 
     def hint(self):
         if self.cursor < len(self.steps):
             return self.steps[self.cursor].deduction
         if self.pending is None and not self.stuck and not self.states[-1].is_complete():
-            result = self.solver.solve(self.states[-1], max_steps=1)
+            try:
+                result = self.solver.solve(self.states[-1], max_steps=1)
+            except CandidateContradiction as exc:
+                self.contradiction = str(exc)
+                self.stuck = True
+                self.pending = exc.step
+                return self.pending.deduction
             self.pending = result.steps[0] if result.steps else None
             self.stuck = self.pending is None
         return self.pending.deduction if self.pending else None
@@ -64,12 +64,18 @@ class ReplaySession:
         elif action == "replay":
             # Generate from the latest saved candidate state, retaining all
             # previous eliminations and keeping the displayed replay position.
-            result = self.solver.solve(self.states[-1])
-            for step in result.steps:
+            # Commit each successful step so a later contradiction cannot
+            # discard the partial replay. Failed updates remain atomic.
+            saved_cursor = self.cursor
+            self.cursor = len(self.steps)
+            while self.hint() is not None:
+                step = self.pending
                 self.steps.append(step)
                 self.states.append(step.after.copy())
-            self.pending = None
-            self.stuck = not result.solved
+                self.pending = None
+                self.cursor = len(self.steps)
+            self.stuck = not self.states[-1].is_complete()
+            self.cursor = len(self.steps) if self.contradiction else saved_cursor
         else:
             raise ValueError("Unknown action")
         return self.view(hint)
@@ -85,8 +91,10 @@ class ReplaySession:
             "cursor": self.cursor,
             "total": len(self.steps),
             "status": "solved" if state.is_complete() else (
-                "stuck" if self.stuck and self.cursor == len(self.steps) else "ready"
+                ("contradiction" if self.contradiction else "stuck")
+                if self.stuck and self.cursor == len(self.steps) else "ready"
             ),
+            "contradiction": self.contradiction if self.cursor == len(self.steps) else None,
             "hint": describe(hint),
             "last": describe(self.steps[self.cursor - 1].deduction) if self.cursor else None,
             "history": [step.deduction.technique for step in self.steps[:self.cursor]],

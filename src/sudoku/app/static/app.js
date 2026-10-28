@@ -196,7 +196,9 @@ function explain() {
   }
   if (view.status !== 'ready') {
     const p = document.createElement('p');
-    p.textContent = view.status === 'solved' ? 'Puzzle complete. Replay any step to revisit its reasoning.' : 'No deduction found within the available techniques and search limits. This does not establish that the puzzle is unsolvable.';
+    p.textContent = view.status === 'solved' ? 'Puzzle complete. Replay any step to revisit its reasoning.'
+      : view.status === 'contradiction' ? `${view.contradiction}. This final deduction exposes the contradiction. No further moves were calculated. Use Back or the timeline to inspect the deductions, or edit the clues.`
+      : 'No deduction found within the available techniques and search limits. This does not establish that the puzzle is unsolvable.';
     $('explanation').append(p);
   }
   $('apply').hidden = !preview || !revealed;
@@ -209,7 +211,7 @@ function render() {
   for (const id of ['replay', 'deduction', 'history-card']) $(id).hidden = !session;
   $('board-help').hidden = !!session;
   $('board-label').textContent = session ? 'YOUR SOLVING SPACE' : 'YOUR PUZZLE';
-  $('board-title').textContent = session ? (view.status === 'solved' ? 'Puzzle complete' : view.status === 'stuck' ? 'End of the available path' : 'Find your next move') : 'Set the starting grid';
+  $('board-title').textContent = session ? (view.status === 'solved' ? 'Puzzle complete' : view.status === 'contradiction' ? 'Contradiction reached' : view.status === 'stuck' ? 'End of the available path' : 'Find your next move') : 'Set the starting grid';
   renderBoard();
   if (session) {
     $('position').textContent = `Step ${view.cursor} of ${view.total}`;
