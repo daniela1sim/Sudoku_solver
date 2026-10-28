@@ -55,8 +55,70 @@ The central goal is not merely to produce a completed grid, but to make the solv
 ### Future extensions
 
 - [ ] Read Sudoku puzzles from images using computer vision and digit recognition.
-- [ ] Build an interactive application for replaying deductions and requesting hints.
+- [x] Build an interactive application for replaying deductions and requesting hints.
 - [ ] Allow users to choose which logical techniques the solver may use.
+
+## Interactive deduction studio
+
+Run the local browser application from the repository root (Python 3.10+):
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m sudoku.app
+```
+
+Open **http://127.0.0.1:8000**. To use another port, run
+`python -m sudoku.app --port 8001`. Stop the server with Ctrl+C.
+The application uses only Python's standard library and the existing solver;
+no frontend build or additional runtime packages are needed.
+
+1. Enter clues by clicking grid cells and typing digits, or paste an 81-character
+   string and click **Use string**. Whitespace is accepted; zeros and dots mean
+   empty cells. The classic warm-up is preloaded on startup. Choose from six
+   bundled puzzles in **Example puzzles**, then click **Load example** to load
+   your selection. The collection includes the classic warm-up, Box by box,
+   Fresh perspective, sparse singles practice, and two advanced examples.
+   The advanced examples come from [Peter Norvig's top95 collection](https://norvig.com/top95.txt):
+   puzzle 13 uses Skyscrapers, and puzzle 19 uses Empty Rectangles and a naked
+   triple with the default solver. Both solve completely and require more than
+   singles. **Clear grid** gives you
+   a blank grid for custom entry. Puzzle data lives in the `examples` collection
+   in `src/sudoku/app/static/app.js`.
+2. Click **Start exploring** to prepare the full available replay automatically,
+   while keeping the board at its initial position. Use **Give me a nudge** for a strategy question
+   without revealing the technique, locations, or move. **Show where to look**
+   names the technique and highlights its supporting cells. **Reveal the
+   deduction** then shows the full explanation, placements, and eliminations.
+   Each level requires a separate click and leaves the board unchanged.
+   **Apply this deduction** appears only after the final reveal.
+3. Use **Back**, **Next**, the replay slider, or a history entry to revisit exact
+   saved states, including candidate eliminations. Deduction history shows only
+   the moves up to the displayed position: it grows as you advance and shrinks
+   when you go back, without listing future deductions. **Play** replays recorded moves
+   automatically and stops at the latest recorded state. At the end, **Play**
+   restarts recorded history. **Next step** revisits a recorded move; when no
+   recorded move is ahead, it becomes **Next hint** and advances the hint levels
+   without applying a move. The explicit **Apply this deduction** button advances
+   the displayed board after revealing a hint. **Pause** stops after an in-flight
+   replay step finishes. Replay generation stops when solved or when the logical
+   solver has no further available move.
+4. Toggle candidate notes and inspect the highlighted reasoning cells,
+   placements, and eliminations. **Edit puzzle / start over** returns to the
+   original clues and starts a fresh history when loaded again.
+
+Uniqueness-based techniques are off by default. The optional uniqueness checkbox
+is an assumption supplied by the user, not a uniqueness check. When the solver
+finds no further deduction within its techniques and search bounds, the app says
+so; that does not mean the puzzle is unsolvable.
+
+Sessions are held in server memory (up to 32 recently used sessions). Refreshing
+the page starts a new workspace; restarting the server discards all sessions.
+The server binds only to `127.0.0.1` and is intended for local use.
+
+The application lives in `src/sudoku/app/`: `session.py` manages replay and hint
+state, `__main__.py` serves the JSON API and bundled static files, and `static/`
+contains the browser interface. It calls the same verified `LogicalSolver`
+used by library clients.
 
 ## Proposed repository structure
 
@@ -133,7 +195,18 @@ The public Python API and CLI will be documented once implemented.
 
 ## Testing and benchmarks
 
-Planned tests cover valid placements, candidate updates, each logical technique, invalid puzzles, unsatisfiable puzzles, and puzzles with multiple solutions. Benchmarks will distinguish **human-style difficulty** from **algorithmic search complexity**, which need not correlate.
+Run the tests from the repository root:
+
+```powershell
+python -m pip install "pytest>=8,<9"
+$env:PYTHONPATH = "src"
+python -m pytest -q
+```
+
+Tests cover candidate updates, logical techniques, deduction verification,
+hint previews, replay state restoration, and the local HTTP API. Benchmarks
+remain planned and will distinguish **human-style difficulty** from
+**algorithmic search complexity**, which need not correlate.
 
 ## Contributing
 

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sudoku · Deduction studio</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header><a href="/" class="brand"><span class="brand-mark">▦</span> SUDOKU <span class="brand-sub">/ deduction studio</span></a><span class="local">● LOCAL WORKSPACE</span></header>
+  <main>
+    <section class="intro"><div class="eyebrow">FOLLOW THE LOGIC</div><h1>Every move has a reason.</h1><p>Find your next move, with just as much help as you need.</p></section>
+    <div class="workspace">
+      <section class="board-panel" aria-label="Sudoku workspace">
+        <div class="panel-heading"><div><span class="eyebrow" id="board-label">YOUR PUZZLE</span><h2 id="board-title">Set the starting grid</h2></div><label class="toggle"><input type="checkbox" id="notes" checked> Candidates</label></div>
+        <div id="board" class="board" role="group" aria-label="Sudoku grid"></div>
+        <div class="legend"><span><i class="dot clue"></i>Clue</span><span><i class="dot premise"></i>Reasoning</span><span><i class="dot effect"></i>Placement</span><span><i class="dot removal"></i>Elimination</span></div>
+        <div id="replay" hidden>
+          <p class="muted">The full available replay is ready when you start. Browse recorded steps, or request gradual hints before moving forward.</p>
+          <p class="muted" id="replay-help" aria-live="polite"></p>
+          <div class="transport"><button id="first" title="Go to initial state">|←</button><button id="back">← Back</button><button id="play" title="Replay recorded moves only">▶ Play</button><button id="next" title="Replay the next recorded move">Next →</button></div>
+          <label class="scrubber"><span id="position">Step 0 of 0</span><input type="range" id="timeline" min="0" max="0" value="0" aria-label="Replay position"></label>
+        </div>
+        <p id="board-help" class="muted">Click a cell and type 1–9. Use arrow keys to move; Delete to clear.</p>
+      </section>
+      <aside>
+        <section class="card" id="setup">
+          <div class="eyebrow">01 / START HERE</div><h2>A puzzle to explore</h2><p>Enter clues in the grid or paste 81 digits below. Use dots or zeros for empty cells.</p>
+          <label for="examples">Example puzzles</label>
+          <select id="examples" aria-describedby="example-description"></select>
+          <p id="example-description" class="muted"></p>
+          <label for="puzzle">Puzzle string</label><textarea id="puzzle" rows="3" spellcheck="false" placeholder="530070000600195000…"></textarea>
+          <div class="small-actions"><button id="import">Use string</button><button id="example">Load example</button><button id="clear">Clear grid</button></div>
+          <label class="unique"><input type="checkbox" id="unique"> Assume this puzzle has a unique solution <small>Enables uniqueness-based techniques.</small></label>
+          <button class="primary wide" id="start">Start exploring →</button>
+        </section>
+        <section class="card" id="deduction" hidden>
+          <div class="eyebrow" id="deduction-label">A HELPING HAND</div><h2 id="technique">A little guidance?</h2><div id="explanation"><p>Ask for a gentle nudge. You choose how much help to reveal.</p></div>
+          <button class="primary wide" id="hint">Give me a nudge</button><button class="primary wide" id="deeper" hidden>Show where to look</button><button class="primary wide" id="apply" hidden>Apply this deduction →</button>
+          <button class="wide secondary" id="edit">Edit puzzle / start over</button>
+        </section>
+        <section class="card history-card" id="history-card" hidden><div class="eyebrow">THE PATH SO FAR</div><h2>Deduction history <span id="count">0</span></h2><p class="muted" id="empty-history">No verified deductions were found for this position with the available techniques.</p><ol id="history"></ol></section>
+        <div id="message" role="status" aria-live="polite"></div>
+        <p class="footnote">Powered by the Python logical solver. Every applied deduction is verified; puzzles may reach a point where the available techniques cannot continue.</p>
+      </aside>
+    </div>
+  </main>
+</body></html>
