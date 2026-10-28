@@ -14,11 +14,14 @@ from sudoku.core.deduction import Deduction, Placement, Elimination
 from sudoku.solvers.logical.base import LogicalTechnique
 from sudoku.solvers.logical.locked_candidates import LockedCandidates, Pointing, Claiming, _locked_patterns
 from sudoku.solvers.logical.disjoint_groups import DisjointGroups
-from sudoku.solvers.logical.fish import BasicFish, XWing, Swordfish, Jellyfish, _fish_patterns
+from sudoku.solvers.logical.fish import BasicFish, XWing, Swordfish, Jellyfish
 from sudoku.solvers.logical.strong_links import Skyscraper, TwoStringKite, Crane, _strong_link_patterns
 from sudoku.solvers.logical.wings import XYWing, XYZWing, WWing, _wing_patterns
 from sudoku.solvers.logical.rectangles import EmptyRectangle, UniqueRectangleType1, UniqueRectangleType2, UniqueRectangleType3, UniqueRectangleType4, UniqueRectangleType5, UniqueRectangleType6, HiddenUniqueRectangle, _hidden_rectangle_patterns, _empty_rectangle_patterns, _UNIQUE_RECTANGLE_PATTERNS
-from sudoku.solvers.logical.finned_fish import FinnedXWing, FinnedSwordfish, FinnedJellyfish, _general_finned_fish_patterns, _finned_xwing_patterns
+from sudoku.solvers.logical.finned_fish import FinnedXWing, FinnedSwordfish, FinnedJellyfish
+from sudoku.solvers.logical.fish_proofs import (
+    verify_basic_fish, verify_finned_xwing, verify_general_finned_fish,
+)
 from sudoku.solvers.logical.uniqueness import BUGPlusOne, _bug_plus_one_patterns
 from sudoku.solvers.logical.remote_pairs import RemotePairs, _pair_components
 from sudoku.solvers.logical.x_chains import XChain, _chain_graph, _chain_eliminations
@@ -101,7 +104,10 @@ class DeductionVerifier:
         if isinstance(technique, BUGPlusOne):
             cls._verify_bug_plus_one(state, technique, deduction)
             return
-        if isinstance(technique, (EmptyRectangle, UniqueRectangleType1, UniqueRectangleType2, UniqueRectangleType3, UniqueRectangleType4, UniqueRectangleType5, UniqueRectangleType6, HiddenUniqueRectangle, FinnedXWing, FinnedSwordfish, FinnedJellyfish)):
+        if isinstance(technique, (FinnedXWing, FinnedSwordfish, FinnedJellyfish)):
+            cls._verify_finned_fish(state, technique, deduction)
+            return
+        if isinstance(technique, (EmptyRectangle, UniqueRectangleType1, UniqueRectangleType2, UniqueRectangleType3, UniqueRectangleType4, UniqueRectangleType5, UniqueRectangleType6, HiddenUniqueRectangle)):
             cls._verify_new_patterns(state, technique, deduction)
             return
         if isinstance(technique, (XYWing, XYZWing, WWing)):
@@ -584,17 +590,18 @@ class DeductionVerifier:
 
     @staticmethod
     def _verify_fish(state: CandidateState, technique: BasicFish, deduction: Deduction) -> None:
-        """Verify basic-fish geometry and all effects against the current state."""
-        if (deduction.technique != technique.name or deduction.placements
-                or len(deduction.premises) != 1 or not deduction.eliminations):
-            raise ValueError("Unexpected fish deduction shape")
-        premise = deduction.premises[0]
-        effects = set(deduction.eliminations)
-        for _, digit, _, _, cells, valid_effects in _fish_patterns(state, technique.size):
-            if (premise.cells == cells and premise.digits == frozenset({digit})
-                    and effects.issubset(set(valid_effects))):
-                return
-        raise ValueError("Fish elimination is not justified")
+        """Check supplied fish geometry directly; never rerun fish detection."""
+        verify_basic_fish(state, deduction, name=technique.name, size=technique.size)
+
+    @staticmethod
+    def _verify_finned_fish(state: CandidateState, technique: LogicalTechnique, deduction: Deduction) -> None:
+        """Check the claimed finned-fish witness without pattern discovery."""
+        if isinstance(technique, FinnedXWing):
+            verify_finned_xwing(state, deduction, name=technique.name)
+        else:
+            verify_general_finned_fish(
+                state, deduction, name=technique.name, size=technique.size
+            )
 
     @staticmethod
     def _verify_strong_links(
@@ -637,9 +644,7 @@ class DeductionVerifier:
         patterns = (_empty_rectangle_patterns(state) if isinstance(technique, EmptyRectangle)
                     else _UNIQUE_RECTANGLE_PATTERNS[technique._type](state) if isinstance(technique, (UniqueRectangleType2, UniqueRectangleType3, UniqueRectangleType4, UniqueRectangleType5, UniqueRectangleType6))
                     else _UNIQUE_RECTANGLE_PATTERNS[1](state) if isinstance(technique, UniqueRectangleType1)
-                    else _hidden_rectangle_patterns(state) if isinstance(technique, HiddenUniqueRectangle)
-                    else _general_finned_fish_patterns(state, technique.size) if isinstance(technique, (FinnedSwordfish, FinnedJellyfish))
-                    else _finned_xwing_patterns(state))
+                    else _hidden_rectangle_patterns(state))
         premise = deduction.premises[0]
         for cells, digits, effects, _ in patterns:
             if (premise.cells == cells and premise.digits == digits
