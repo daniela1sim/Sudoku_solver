@@ -17,6 +17,34 @@ const examples = [
 ];
 let draft = Array(81).fill('0'), selected = 0, session = null, view = null;
 let busy = false, playing = false, timer = null;
+let catalogReady = false;
+const techniqueOptions = [];
+function selectedTechniques() {
+  return techniqueOptions.filter(item => item.input.checked && (!item.unique || $('unique').checked)).map(item => item.name);
+}
+function updateTechniqueOptions() {
+  for (const item of techniqueOptions) item.input.disabled = busy || (item.unique && !$('unique').checked);
+  $('technique-count').textContent = `· ${selectedTechniques().length} selected`;
+}
+async function loadTechniques() {
+  try {
+    const response = await fetch('/api/techniques');
+    if (!response.ok) throw new Error('Could not load the technique list. Refresh to retry.');
+    const entries = await response.json();
+    for (const entry of entries) {
+      const label = document.createElement('label'), input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = true;
+      input.onchange = updateTechniqueOptions;
+      label.append(input, document.createTextNode(entry.name + (entry.requires_uniqueness ? ' (requires uniqueness)' : '')));
+      $('technique-options').append(label);
+      techniqueOptions.push({input, name: entry.name, unique: entry.requires_uniqueness});
+    }
+    catalogReady = true;
+    updateTechniqueOptions();
+  } catch (error) { notice(error.message); }
+  controls();
+}
 // Each new hint starts without locations, effect highlights, or an answer.
 let hintLevel = 0;
 const cells = [];
@@ -36,6 +64,10 @@ function controls() {
   for (const id of ['start', 'import', 'example', 'examples', 'clear', 'hint', 'deeper', 'apply', 'edit', 'next', 'back', 'first', 'timeline']) {
     $(id).disabled = busy;
   }
+  $('start').disabled = busy || !catalogReady;
+  $('unique').disabled = busy;
+  for (const id of ['techniques-all', 'techniques-singles', 'techniques-none']) $(id).disabled = busy || !catalogReady;
+  updateTechniqueOptions();
   if (session && view && !busy) {
     $('first').disabled = $('back').disabled = view.cursor === 0;
     $('hint').disabled = view.status !== 'ready';
@@ -194,6 +226,7 @@ function render() {
     });
     $('history').scrollTop = $('history').scrollHeight;
     explain();
+    $('active-techniques').textContent = `${view.techniques.length} techniques enabled. Use Edit puzzle / start over to change your selection and rebuild the replay.`;
   }
   controls();
 }
@@ -265,7 +298,7 @@ $('import').onclick = () => {
   notice(); render();
 };
 $('start').onclick = async () => {
-  const data = await request('/api/start', {puzzle: draft.join(''), allow_uniqueness: $('unique').checked});
+  const data = await request('/api/start', {puzzle: draft.join(''), allow_uniqueness: $('unique').checked, techniques: selectedTechniques()});
   if (data) { session = data.session; view = data; render(); }
 };
 $('hint').onclick = () => { stop(); action('hint'); };
@@ -300,3 +333,13 @@ $('play').onclick = async () => {
 $('edit').onclick = () => { stop(); session = null; view = null; notice(); render(); };
 // Start with a playable example; custom entry remains available via Clear grid.
 loadExample();
+$('unique').onchange = updateTechniqueOptions;
+for (const [id, predicate] of [
+  ['techniques-all', () => true],
+  ['techniques-singles', item => ['Naked Single', 'Hidden Single'].includes(item.name)],
+  ['techniques-none', () => false],
+]) $(id).onclick = () => {
+  for (const item of techniqueOptions) item.input.checked = predicate(item);
+  updateTechniqueOptions();
+};
+loadTechniques();

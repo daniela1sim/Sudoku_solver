@@ -56,7 +56,7 @@ The central goal is not merely to produce a completed grid, but to make the solv
 
 - [ ] Read Sudoku puzzles from images using computer vision and digit recognition.
 - [x] Build an interactive application for replaying deductions and requesting hints.
-- [ ] Allow users to choose which logical techniques the solver may use.
+- [x] Allow users to choose which logical techniques the solver may use.
 
 ## Interactive deduction studio
 
@@ -110,6 +110,16 @@ Uniqueness-based techniques are off by default. The optional uniqueness checkbox
 is an assumption supplied by the user, not a uniqueness check. When the solver
 finds no further deduction within its techniques and search bounds, the app says
 so; that does not mean the puzzle is unsolvable.
+
+Expand **Logical techniques** in puzzle setup to select individual techniques,
+or use **Select all**, **Singles only**, or **Select none**. All ordinary
+techniques are selected by default; uniqueness techniques remain unavailable
+until the uniqueness assumption is enabled. The selection applies to both hints
+and automatic replay, retaining the solver's usual technique priority. Selecting
+none is allowed and leaves an unfinished puzzle with no available deductions.
+Use **Edit puzzle / start over** to change the selection and rebuild the replay
+from the original clues; this replaces the previous replay. Choices are kept
+while editing in the same page and reset on refresh.
 
 Sessions are held in server memory (up to 32 recently used sessions). Refreshing
 the page starts a new workspace; restarting the server discards all sessions.

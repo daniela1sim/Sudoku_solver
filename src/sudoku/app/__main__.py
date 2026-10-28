@@ -10,6 +10,7 @@ import traceback
 from uuid import uuid4
 
 from sudoku.app.session import ReplaySession
+from sudoku.app.techniques import catalog
 
 
 class AppServer(ThreadingHTTPServer):
@@ -33,6 +34,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if self.path == "/api/techniques":
+            self.reply(200, catalog())
+            return
         assets = {"/": ("index.html", "text/html; charset=utf-8"),
                   "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                   "/style.css": ("style.css", "text/css; charset=utf-8")}
@@ -68,7 +72,8 @@ class Handler(BaseHTTPRequestHandler):
                     unique = body.get("allow_uniqueness", False)
                     if type(unique) is not bool:
                         raise ValueError("Uniqueness option must be a boolean")
-                    session = ReplaySession(puzzle, allow_uniqueness=unique)
+                    session = ReplaySession(puzzle, allow_uniqueness=unique,
+                                            techniques=body.get("techniques"))
                     session.act("replay")
                     token = uuid4().hex
                     self.server.sessions[token] = session

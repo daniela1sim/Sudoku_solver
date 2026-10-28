@@ -65,3 +65,15 @@ def test_api_rejects_bad_input_and_cross_origin_requests(server):
     assert request(server, 'POST', '/api/start', '{}', {'Content-Type': 'text/plain'})[0] == 415
     assert request(server, 'POST', '/api/start', '{}', {'Content-Type': 'application/json', 'Origin': 'https://example.com'})[0] == 403
     assert request(server, 'POST', '/api/start', '{', {'Content-Type': 'application/json'})[0] == 400
+
+
+def test_api_technique_selection(server):
+    status, data = request(server, 'GET', '/api/techniques')
+    assert status == 200 and any(t['name'] == 'Naked Single' for t in json.loads(data))
+    puzzle = '034678912672195348198342567859761423426853791713924856961537284287419635345286179'
+    status, response = post(server, '/api/start', {'puzzle': puzzle, 'techniques': []})
+    assert status == 200 and response['total'] == 0 and response['techniques'] == []
+    status, response = post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Naked Single']})
+    assert status == 200 and response['total'] == 1 and response['techniques'] == ['Naked Single']
+    assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unknown']})[0] == 400
+    assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unique Rectangle Type 1']})[0] == 400

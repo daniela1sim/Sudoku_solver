@@ -2,7 +2,7 @@
 
 from sudoku.core.board import SudokuBoard
 from sudoku.core.candidates import CandidateState
-from sudoku.solvers.logical.solver import LogicalSolver
+from sudoku.app.techniques import selected_solver
 
 
 def describe(deduction):
@@ -20,8 +20,8 @@ def describe(deduction):
 
 
 class ReplaySession:
-    def __init__(self, puzzle: str, *, allow_uniqueness: bool = False):
-        self.solver = LogicalSolver(allow_uniqueness=allow_uniqueness)
+    def __init__(self, puzzle: str, *, allow_uniqueness: bool = False, techniques=None):
+        self.solver = selected_solver(techniques, allow_uniqueness=allow_uniqueness)
         self.states = [CandidateState(SudokuBoard.from_string(puzzle))]
         self.steps = []
         self.cursor = 0
@@ -70,6 +70,7 @@ class ReplaySession:
         state = self.states[self.cursor]
         board = state.board
         return {
+            "techniques": [t.name for t in self.solver.techniques],
             "grid": board.to_string(),
             "givens": sorted(board.givens),
             "candidates": [sorted(state.candidates_at(r, c)) for r in range(9) for c in range(9)],
