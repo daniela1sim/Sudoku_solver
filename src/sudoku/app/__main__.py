@@ -1,6 +1,8 @@
 """Run with python -m sudoku.app (loopback only)."""
 
 import argparse
+import base64
+import binascii
 from collections import OrderedDict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
@@ -59,11 +61,23 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 4096:
-                raise ValueError("Request body must be between 1 and 4096 bytes")
+            limit = 12 * 1024 * 1024 if self.path == "/api/image" else 4096
+            if not 0 < length <= limit:
+                raise ValueError(f"Request body must be between 1 and {limit} bytes")
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("Expected a JSON object")
+            if self.path == "/api/image":
+                from sudoku.vision import read_image
+                encoded = body.get("image")
+                if not isinstance(encoded, str):
+                    raise ValueError("Expected a base64 image")
+                try:
+                    image = base64.b64decode(encoded, validate=True)
+                except (ValueError, binascii.Error) as exc:
+                    raise ValueError("Invalid base64 image") from exc
+                self.reply(200, read_image(image))
+                return
             with self.server.session_lock:
                 if self.path == "/api/start":
                     puzzle = body.get("puzzle")

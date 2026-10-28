@@ -18,6 +18,12 @@ const examples = [
 let draft = Array(81).fill('0'), selected = 0, session = null, view = null;
 let busy = false, playing = false, timer = null;
 let catalogReady = false;
+let imageReview = null;
+function clearImageReview() {
+  imageReview = null;
+  $('image-review').hidden = true;
+  $('image-confirm').checked = false;
+}
 const techniqueOptions = [];
 function selectedTechniques() {
   return techniqueOptions.filter(item => item.input.checked && (!item.unique || $('unique').checked)).map(item => item.name);
@@ -64,7 +70,9 @@ function controls() {
   for (const id of ['start', 'import', 'example', 'examples', 'clear', 'hint', 'deeper', 'apply', 'edit', 'next', 'back', 'first', 'timeline']) {
     $(id).disabled = busy;
   }
-  $('start').disabled = busy || !catalogReady;
+  $('start').disabled = busy || !catalogReady || (imageReview && !$('image-confirm').checked);
+  $('read-image').disabled = $('puzzle-image').disabled = busy;
+  $('image-confirm').disabled = busy;
   $('unique').disabled = busy;
   for (const id of ['techniques-all', 'techniques-singles', 'techniques-none']) $(id).disabled = busy || !catalogReady;
   updateTechniqueOptions();
@@ -82,7 +90,7 @@ function controls() {
 async function request(path, body) {
   busy = true;
   controls();
-  notice('Checking the logic…', true);
+  notice(path === '/api/image' ? 'Reading the puzzle image…' : 'Checking the logic…', true);
   try {
     const response = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
     const data = await response.json();
@@ -120,6 +128,7 @@ function renderBoard() {
     cell.classList.toggle('reason', reasons.has(i));
     cell.classList.toggle('placed', placed.has(i));
     cell.classList.toggle('eliminated', removed.has(i));
+    cell.classList.toggle('image-uncertain', !session && !!imageReview?.cells[i].review);
     const digit = grid[i];
     const candidates = session ? view.candidates[i] : [];
     cell.setAttribute('aria-label', `Row ${Math.floor(i / 9) + 1}, column ${i % 9 + 1}, ${digit !== '0' ? digit : 'empty' + (candidates.length ? ', candidates ' + candidates.join(', ') : '')}`);
@@ -250,6 +259,7 @@ for (let i = 0; i < 81; i++) {
   cell.className = 'cell';
   cell.onclick = () => { selected = i; renderBoard(); };
   cell.onkeydown = event => {
+    if (busy) return;
     let target = i;
     if (event.key === 'ArrowLeft') target = Math.max(0, i - 1);
     else if (event.key === 'ArrowRight') target = Math.min(80, i + 1);
@@ -262,6 +272,11 @@ for (let i = 0; i < 81; i++) {
       draft[i] = '0';
       $('puzzle').value = draft.join('');
     } else return;
+    if (!session && imageReview && /^[1-9]$|^Backspace$|^Delete$|^0$|^\.$/.test(event.key)) {
+      imageReview.cells[i].review = false;
+      $('image-confirm').checked = false;
+      controls();
+    }
     event.preventDefault();
     selected = target;
     renderBoard();
@@ -272,6 +287,7 @@ for (let i = 0; i < 81; i++) {
 }
 $('notes').onchange = renderBoard;
 function loadExample() {
+  clearImageReview();
   const example = examples[Number($('examples').value)];
   draft = example.puzzle.split('');
   selected = 0;
@@ -290,16 +306,46 @@ $('examples').onchange = () => {
 };
 $('examples').onchange();
 $('example').onclick = loadExample;
-$('clear').onclick = () => { draft.fill('0'); $('puzzle').value = ''; notice(); render(); };
+$('clear').onclick = () => { clearImageReview(); draft.fill('0'); $('puzzle').value = ''; notice(); render(); };
 $('import').onclick = () => {
   const text = $('puzzle').value.replace(/\s/g, '');
   if (!/^[0-9.]{81}$/.test(text)) { notice('Enter exactly 81 digits or dots. Spaces and line breaks are accepted.'); return; }
+  clearImageReview();
   draft = text.replace(/\./g, '0').split('');
   notice(); render();
 };
 $('start').onclick = async () => {
+  if (busy || (imageReview && !$('image-confirm').checked)) return;
   const data = await request('/api/start', {puzzle: draft.join(''), allow_uniqueness: $('unique').checked, techniques: selectedTechniques()});
   if (data) { session = data.session; view = data; render(); }
+};
+$('image-confirm').onchange = controls;
+$('read-image').onclick = async () => {
+  if (busy || session) return;
+  const file = $('puzzle-image').files[0];
+  if (!file) { notice('Choose a puzzle image first.'); return; }
+  if (file.size > 8 * 1024 * 1024) { notice('Choose an image smaller than 8 MiB.'); return; }
+  busy = true; controls();
+  try {
+    const encoded = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('Could not read the selected file.'));
+      reader.readAsDataURL(file);
+    });
+    const data = await request('/api/image', {image: encoded});
+    if (!data) return;
+    imageReview = data;
+    draft = data.puzzle.split('');
+    $('puzzle').value = data.puzzle;
+    $('image-preview').src = data.preview;
+    $('image-status').textContent = `${data.warning} ${data.cells.filter(c => c.review).length} cells flagged; ${data.conflicts.length} conflicting cells.`;
+    $('image-confirm').checked = false;
+    $('image-review').hidden = false;
+    selected = 0;
+    render();
+  } catch (error) { notice(error.message); }
+  finally { busy = false; controls(); }
 };
 $('hint').onclick = () => { stop(); action('hint'); };
 $('deeper').onclick = () => {

@@ -77,3 +77,24 @@ def test_api_technique_selection(server):
     assert status == 200 and response['total'] == 1 and response['techniques'] == ['Naked Single']
     assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unknown']})[0] == 400
     assert post(server, '/api/start', {'puzzle': puzzle, 'techniques': ['Unique Rectangle Type 1']})[0] == 400
+
+
+def test_image_api_validates_upload_and_does_not_start_session(server, monkeypatch):
+    import base64
+    import sudoku.vision
+    seen = []
+
+    def reader(data):
+        seen.append(data)
+        return {'puzzle': '0' * 81, 'cells': [], 'conflicts': []}
+
+    monkeypatch.setattr(sudoku.vision, 'read_image', reader)
+    image = base64.b64encode(b'image bytes' * 500).decode()
+    status, data = post(server, '/api/image', {'image': image})
+    assert status == 200 and data['puzzle'] == '0' * 81
+    assert seen == [b'image bytes' * 500]
+    assert not server.sessions
+    for body in [{'image': '!!'}, {'image': 123}, {}]:
+        assert post(server, '/api/image', body)[0] == 400
+    assert request(server, 'POST', '/api/image', None, {
+        'Content-Type': 'application/json', 'Origin': 'https://example.com'})[0] == 403

@@ -4,14 +4,14 @@ An extensible Python project for solving Sudoku puzzles with **human-style logic
 
 The central goal is not merely to produce a completed grid, but to make the solving process **correct, traceable, and explainable**: every logical placement or candidate elimination should be supported by an explicit justification.
 
-> **Project status:** Active development. The explainable logical-solving engine, interactive hints/replay application, and an independent exact reference solver are implemented. Additional constraint-solving methods, computer vision, and ML/LLM components remain planned.
+> **Project status:** Active development. The explainable logical-solving engine, interactive hints/replay application, independent exact reference solver, and experimental local image importer are implemented. Broader image-recognition coverage, additional constraint-solving methods, and ML/LLM experiments remain planned.
 
 ## Project goals
 
 1. **Explainable logical solving:** Implement human Sudoku techniques, from singles and subsets to advanced patterns and inference chains. Record the premises and consequences of each deduction.
 2. **Constraint solving:** Implement and compare backtracking, constraint propagation, search heuristics, and exact-cover methods.
 3. **ML/LLM experiments:** Investigate whether learned heuristics or LLM-assisted technique selection can improve existing solvers without compromising correctness.
-4. **Puzzle input and visualization:** Eventually support structured grids, image recognition, and interactive step-by-step explanations.
+4. **Puzzle input and visualization:** Support structured grids, reviewed image imports, and interactive step-by-step explanations; improve recognition across real-world puzzle images.
 
 ## Development roadmap
 
@@ -53,11 +53,40 @@ The central goal is not merely to produce a completed grid, but to make the solv
 - [ ] Explore structured explanations generated from verified deductions.
 - [ ] Measure correctness, computational cost, and performance gains.
 
-### Future extensions
+### Image input and interactive application
 
-- [ ] Read Sudoku puzzles from images using computer vision and digit recognition.
+- [x] Add an experimental printed-puzzle image importer with editable review.
+- [ ] Benchmark image recognition on real photos and broaden font/handwriting support.
 - [x] Build an interactive application for replaying deductions and requesting hints.
 - [x] Allow users to choose which logical techniques the solver may use.
+
+### Next tasks
+
+These are proposed follow-up tasks, not capabilities of the current application.
+
+**Image recognition — immediate priority**
+
+- [ ] Build a labeled image collection spanning screenshots, printed photos, fonts, colored grids, compression, shadows, and perspective distortion. Record source/redistribution permission for each fixture.
+- [ ] Report exact-grid accuracy, digit accuracy, missed clues, and false digits in empty cells separately; retain every reported failure as a regression case.
+- [ ] Add manual crop, rotation, and corner adjustment when automatic grid detection fails.
+- [ ] Compare the template recognizer with a local OCR or trained digit model using a held-out image set; package fonts or model assets for reproducible results across operating systems.
+- [ ] Improve uncertain-cell review with enlarged cell crops and alternative readings. Keep corrections explicit rather than silently using Sudoku constraints to change clues.
+- [ ] Detect candidate notes and handwriting, and either support them with dedicated recognition or clearly flag unsupported input.
+- [ ] Add automated browser coverage for upload, correction, review confirmation, and starting a replay from an imported puzzle.
+
+**Solver and application**
+
+- [ ] Offer an explicit solvability/uniqueness check through `ReferenceSolver`, distinct from the existing uniqueness assumption checkbox.
+- [ ] Save and restore puzzle drafts, technique choices, and replay history across page refreshes.
+- [ ] Profile advanced technique searches and add reproducible performance benchmarks before increasing search bounds.
+- [ ] Extend independent oracle checks and proof-verification tests when adding or changing techniques.
+
+**Repository maintenance**
+
+- [ ] Move the existing `src/sudoku/solvers/logical/test_fish_proof_independence.py` into the test tree after reviewing it; the default pytest configuration currently discovers only `tests/`.
+- [ ] Add continuous integration for core tests without vision dependencies and image tests with the optional packages, including Windows/Linux coverage.
+- [ ] Choose a license and add `LICENSE`; review distribution rights for image fixtures and any bundled recognition assets.
+- [ ] Move the legacy patch ZIP out of the Python source package and document whether it should be retained as a release artifact.
 
 ## Independent reference solver
 
@@ -108,6 +137,45 @@ python -m pytest -q tests/solvers/constraint
 
 ## Interactive deduction studio
 
+### Import a printed puzzle image (experimental)
+
+Install the optional image packages from the repository root:
+
+```powershell
+python -m pip install ".[vision]"
+$env:PYTHONPATH = "src"
+python -m sudoku.app
+```
+
+In puzzle setup, expand **Import a puzzle image**, choose a PNG/JPEG/WebP,
+and click **Read image**. The importer detects the grid, corrects perspective,
+and reads printed digits using local glyph templates. Compare the editable grid
+with the straightened image, correct any mistakes, and check **I reviewed the
+grid against the image** before starting. Amber cells indicate uncertain readings
+or duplicate clues. Recognition does not create a solving session or fill missing
+clues using Sudoku constraints. Images stay local and are not saved by the server.
+
+This first version targets upright, dark-on-light, clearly ruled printed grids
+and screenshots. It is not a trained OCR model. Handwriting, candidate notes,
+decorative fonts, heavy shadows, major rotation, and incomplete borders are not
+supported reliably. Even unflagged digits and blank cells can be wrong; similarity
+scores are not probabilities. Available system fonts affect template coverage.
+Uploads are limited to 8 MiB and 16 megapixels. The ordinary solver still runs
+without the optional dependencies.
+
+Try [the generated perspective sample](docs/sample-puzzle.png) for a first import.
+
+The implementation is isolated in `src/sudoku/vision/reader.py`; its public API
+is `read_image(image_bytes)`, returning the draft puzzle, cell scores/review flags,
+direct conflicts, and a straightened PNG preview. Regression tests cover generated
+grids with perspective distortion and the supplied colored-grid screenshot in
+`tests/vision/fixtures/colored-grid.png`, including resized and JPEG variants.
+Narrow border remnants are filtered so grid-line slivers are not read as `1`s in
+empty cells. These checks do not establish general real-photo accuracy, which
+remains unmeasured.
+
+### Launch and use the studio
+
 Run the local browser application from the repository root (Python 3.10+):
 
 ```powershell
@@ -117,8 +185,9 @@ python -m sudoku.app
 
 Open **http://127.0.0.1:8000**. To use another port, run
 `python -m sudoku.app --port 8001`. Stop the server with Ctrl+C.
-The application uses only Python's standard library and the existing solver;
-no frontend build or additional runtime packages are needed.
+Manual entry, hints, and replay use only Python's standard library and the existing
+solver. No frontend build is needed. Image import additionally requires the
+optional `vision` packages shown above.
 
 1. Enter clues by clicking grid cells and typing digits, or paste an 81-character
    string and click **Use string**. Whitespace is accepted; zeros and dots mean
@@ -178,41 +247,70 @@ state, `__main__.py` serves the JSON API and bundled static files, and `static/`
 contains the browser interface. It calls the same verified `LogicalSolver`
 used by library clients.
 
-## Proposed repository structure
+## Current repository structure
 
-The repository will grow incrementally. The initial package structure is planned as:
+The tree below reflects the current working directory. Package `__init__.py`
+files and individual technique/test modules are condensed where indicated;
+generated caches and Git internals are omitted.
 
 ```text
-intelligent-sudoku-solver/
+Sudoku_solver/
 ├── README.md
-├── LICENSE
+├── PATCH_README.md                 # Historical reference-solver patch notes
 ├── .gitignore
 ├── pyproject.toml
+├── docs/
+│   ├── reference_solver.md         # Exact solver API and correctness audits
+│   └── sample-puzzle.png           # Generated perspective image to try
 ├── src/
 │   └── sudoku/
-│       ├── __init__.py
+│       ├── app/
+│       │   ├── __main__.py         # Local HTTP server, JSON API, image upload
+│       │   ├── session.py          # Replay and hint state
+│       │   ├── techniques.py       # Selectable technique catalog
+│       │   └── static/
+│       │       ├── index.html
+│       │       ├── app.js
+│       │       └── style.css
 │       ├── core/
-│       │   ├── __init__.py
-│       │   ├── board.py
-│       │   ├── candidates.py
-│       │   ├── deduction.py
-│       │   └── validator.py
-│       └── solvers/
-│           ├── __init__.py
-│           └── logical/
-│               ├── __init__.py
-│               ├── base.py
-│               ├── singles.py
-│               └── solver.py
-├── tests/
-│   ├── core/
-│   └── solvers/
-│       └── logical/
-└── data/
-    └── puzzles/
+│       │   ├── board.py            # Board representation and clue validation
+│       │   ├── candidates.py       # Candidate tracking and state updates
+│       │   └── deduction.py        # Structured deductions and premises
+│       ├── solvers/
+│       │   ├── constraint/
+│       │   │   └── reference.py    # Independent MRV/bitmask exact solver
+│       │   └── logical/
+│       │       ├── base.py
+│       │       ├── solver.py       # Technique orchestration
+│       │       ├── verification.py # Deduction verification
+│       │       ├── fish_proofs.py
+│       │       ├── test_fish_proof_independence.py
+│       │       └── …              # Singles, subsets, fish, wings, ALS, chains,
+│       │                          # rectangles, coloring, and inference graphs
+│       ├── vision/
+│       │   └── reader.py          # Grid detection, perspective correction,
+│       │                          # glyph templates, review/conflict metadata
+│       └── sudoku-reference-solver-github-patch.zip  # Legacy patch archive
+└── tests/
+    ├── app/                       # Sessions, examples, techniques, HTTP API
+    ├── core/                      # Candidates and deductions
+    ├── solvers/
+    │   ├── constraint/            # Reference solver and oracle checks
+    │   └── logical/               # Techniques and deduction verification
+    └── vision/
+        ├── test_reader.py
+        └── fixtures/
+            └── colored-grid.png   # Regression: borders mistaken for digits
 ```
 
-Future modules may include `solvers/constraint/`, `solvers/hybrid/`, `ml/`, `vision/`, `explanation/`, `visualization/`, and `benchmarks/`.
+The checkout folder may have a different name (for example, `sudoku solver`).
+`LICENSE`, `data/`, `benchmarks/`, `ml/`, and `solvers/hybrid/` do not yet exist.
+The six example puzzle strings currently live in `app/static/app.js`.
+Board validation lives in `core/board.py`; there is no separate `validator.py`.
+
+The image importer returns a draft to the browser for review. Once accepted,
+the draft enters the same `ReplaySession` and logical-solving flow as manual
+input. The exact reference solver is currently a separate library/testing tool.
 
 ## Design principles
 
@@ -249,14 +347,17 @@ puzzle = [
 ]
 ```
 
-The public Python API and CLI will be documented once implemented.
+Construct this grid with `SudokuBoard(puzzle)`, or use
+`SudokuBoard.from_string(...)` for 81-character input. The reference solver API
+is documented above and in `docs/reference_solver.md`; the browser entry point
+is `python -m sudoku.app`. Examples for individual logical techniques follow below.
 
 ## Testing and benchmarks
 
 Run the tests from the repository root:
 
 ```powershell
-python -m pip install "pytest>=8,<9"
+python -m pip install -e ".[dev,vision]"
 $env:PYTHONPATH = "src"
 python -m pytest -q
 ```
@@ -264,13 +365,30 @@ python -m pytest -q
 Tests cover candidate updates, logical techniques, deduction verification,
 hint previews, replay state restoration, technique selection, the local HTTP API,
 reference-solver solution counting and assumptions, and independent audits of
-logical deductions against original clues. Benchmarks
+logical deductions against original clues, image recognition, blank-cell handling,
+grid-border filtering, and invalid image uploads. Use `.[dev]` instead if only
+the core application is needed; vision tests skip when their dependencies are
+unavailable. To run just the importer and upload API checks:
+
+```powershell
+python -m pytest -q tests/vision tests/app/test_server.py
+```
+
+The HTTP integration tests need permission to connect to temporary localhost
+servers. The default test discovery root is `tests/`, as configured in
+`pyproject.toml`; the fish-proof test currently under `src/` is not included.
+Benchmarks
 remain planned and will distinguish **human-style difficulty** from
 **algorithmic search complexity**, which need not correlate.
 
 ## Contributing
 
-The project is in its initial design stage. Contribution guidelines will be added as the implementation matures.
+Add focused regression cases for bug fixes, keep deduction discovery separate
+from verification, and run the relevant tests before submitting changes.
+Image-recognition changes should check both printed clues and empty cells, and
+must preserve the review step. Include expected puzzle strings and fixture
+provenance when adding image cases. More detailed contribution guidelines remain
+a future task.
 
 ## License
 

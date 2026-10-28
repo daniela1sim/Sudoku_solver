@@ -30,6 +30,19 @@
           <p id="example-description" class="muted"></p>
           <label for="puzzle">Puzzle string</label><textarea id="puzzle" rows="3" spellcheck="false" placeholder="530070000600195000…"></textarea>
           <div class="small-actions"><button id="import">Use string</button><button id="example">Load example</button><button id="clear">Clear grid</button></div>
+          <details class="image-import">
+            <summary>Import a puzzle image · experimental</summary>
+            <p class="muted">Use an upright printed puzzle with a clear, complete grid. PNG, JPEG, or WebP; up to 8 MiB and 16 megapixels. Processing stays on this computer.</p>
+            <label for="puzzle-image">Puzzle image</label>
+            <input id="puzzle-image" type="file" accept="image/png,image/jpeg,image/webp">
+            <button id="read-image" type="button">Read image</button>
+            <div id="image-review" hidden>
+              <p id="image-status" role="status"></p>
+              <img id="image-preview" alt="Detected puzzle, straightened for comparison">
+              <p class="muted">Compare all clues, including empty cells. Click a grid cell and type to correct it; Delete clears it. Amber marks uncertain or conflicting readings.</p>
+              <label><input id="image-confirm" type="checkbox"> I reviewed the grid against the image</label>
+            </div>
+          </details>
           <label class="unique"><input type="checkbox" id="unique"> Assume this puzzle has a unique solution <small>Enables uniqueness-based techniques.</small></label>
           <details class="technique-settings">
             <summary>Logical techniques <span id="technique-count">Loading…</span></summary>
