@@ -1,3 +1,35 @@
+"""Standard Finned X-Wing candidate eliminations (row and column orientations)."""
+from __future__ import annotations
+from itertools import combinations
+from sudoku.core.candidates import CandidateState
+from sudoku.core.deduction import Deduction, Elimination, Premise, cell_label
+from sudoku.solvers.logical.base import LogicalTechnique
+from sudoku.solvers.logical.strong_links import _box
+
+
+def _finned_xwing_patterns(state: CandidateState):
+    """Yield (pattern cells, digit set, effects, explanation)."""
+    for d in range(1,10):
+        for transpose in (False,True):
+            def cell(r,c): return (c,r) if transpose else (r,c)
+            for base in range(9):
+                base_positions = [c for c in range(9) if d in state.candidates_at(*cell(base,c))]
+                if len(base_positions)!=2:
+                    continue
+                a,b=base_positions
+                for fin_row in range(9):
+                    if base == fin_row or base//3 == fin_row//3:
+                        continue
+                    fin_positions = [c for c in range(9) if d in state.candidates_at(*cell(fin_row,c))]
+                    if not {a,b}.issubset(fin_positions) or len(fin_positions)<3:
+                        continue
+                    fin_cols = [c for c in fin_positions if c not in (a,b)]
+                    for corner in (a,b):
+                        corner_cell=cell(fin_row,corner)
+                        fin_box=_box(corner_cell)
+                        if not all(_box(cell(fin_row,c))==fin_box for c in fin_cols):
+                            continue
+                        targets=tuple(Elimination(cell(r,corner),d) for r in range(9)
                             if r not in (base,fin_row)
                             and _box(cell(r,corner))==fin_box
                             and d in state.candidates_at(*cell(r,corner)))
