@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sudoku-deduction-studio
+    runtime: python
+    plan: free
+    buildCommand: pip install ".[web,vision]"
+    startCommand: gunicorn 'sudoku.app.web:create_app()' --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 --access-logfile -
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10

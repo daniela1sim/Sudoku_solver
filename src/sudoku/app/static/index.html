@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
 </head>
 <body>
-  <header><a href="/" class="brand"><span class="brand-mark">▦</span> SUDOKU <span class="brand-sub">/ deduction studio</span></a><span class="local">● LOCAL WORKSPACE</span></header>
+  <header><a href="/" class="brand"><span class="brand-mark">▦</span> SUDOKU <span class="brand-sub">/ deduction studio</span></a><span class="local">● DEDUCTION STUDIO</span></header>
   <main>
     <section class="intro"><div class="eyebrow">FOLLOW THE LOGIC</div><h1>Every move has a reason.</h1><p>Find your next move, with just as much help as you need.</p></section>
     <div class="workspace">
@@ -33,6 +33,7 @@
           <details class="image-import">
             <summary>Import a puzzle image · experimental</summary>
             <p class="muted">Use an upright printed puzzle with a clear, complete grid. PNG, JPEG, or WebP; up to 8 MiB and 16 megapixels. Processing stays on this computer.</p>
+            <p>Images are sent to the server for recognition and are not saved. Review the detected digits before solving.</p>
             <label for="puzzle-image">Puzzle image</label>
             <input id="puzzle-image" type="file" accept="image/png,image/jpeg,image/webp">
             <button id="read-image" type="button">Read image</button>

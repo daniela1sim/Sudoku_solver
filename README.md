@@ -155,7 +155,8 @@ and reads printed digits using local glyph templates. Compare the editable grid
 with the straightened image, correct any mistakes, and check **I reviewed the
 grid against the image** before starting. Amber cells indicate uncertain readings
 or duplicate clues. Recognition does not create a solving session or fill missing
-clues using Sudoku constraints. Images stay local and are not saved by the server.
+clues using Sudoku constraints. Images are processed by the server and are not saved. When hosted online,
+the image is uploaded to the hosting server; when run locally it stays on your computer.
 
 This first version targets upright, dark-on-light, clearly ruled printed grids
 and screenshots. It is not a trained OCR model. Handwriting, candidate notes,
@@ -250,7 +251,8 @@ while editing in the same page and reset on refresh.
 
 Sessions are held in server memory (up to 32 recently used sessions). Refreshing
 the page starts a new workspace; restarting the server discards all sessions.
-The server binds only to `127.0.0.1` and is intended for local use.
+The local command binds only to `127.0.0.1`. For public hosting, use the
+separate Flask/Gunicorn entry point described in [deployment instructions](docs/deployment.md).
 
 The application lives in `src/sudoku/app/`: `session.py` manages replay and hint
 state, `__main__.py` serves the JSON API and bundled static files, and `static/`

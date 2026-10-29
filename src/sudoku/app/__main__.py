@@ -1,17 +1,12 @@
 """Run with python -m sudoku.app (loopback only)."""
 
 import argparse
-import base64
-import binascii
-from collections import OrderedDict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 import json
-import threading
 import traceback
-from uuid import uuid4
 
-from sudoku.app.session import ReplaySession
+from sudoku.app.service import SudokuService
 from sudoku.app.techniques import catalog
 
 
@@ -20,8 +15,8 @@ class AppServer(ThreadingHTTPServer):
 
     def __init__(self, address):
         super().__init__(address, Handler)
-        self.sessions = OrderedDict()
-        self.session_lock = threading.Lock()
+        self.service = SudokuService()
+        self.sessions = self.service.sessions
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -67,43 +62,7 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("Expected a JSON object")
-            if self.path == "/api/image":
-                from sudoku.vision import read_image
-                encoded = body.get("image")
-                if not isinstance(encoded, str):
-                    raise ValueError("Expected a base64 image")
-                try:
-                    image = base64.b64decode(encoded, validate=True)
-                except (ValueError, binascii.Error) as exc:
-                    raise ValueError("Invalid base64 image") from exc
-                self.reply(200, read_image(image))
-                return
-            with self.server.session_lock:
-                if self.path == "/api/start":
-                    puzzle = body.get("puzzle")
-                    if not isinstance(puzzle, str):
-                        raise ValueError("Enter an 81-character puzzle")
-                    unique = body.get("allow_uniqueness", False)
-                    if type(unique) is not bool:
-                        raise ValueError("Uniqueness option must be a boolean")
-                    session = ReplaySession(puzzle, allow_uniqueness=unique,
-                                            techniques=body.get("techniques"))
-                    session.act("replay")
-                    token = uuid4().hex
-                    self.server.sessions[token] = session
-                    while len(self.server.sessions) > 32:
-                        self.server.sessions.popitem(last=False)
-                    response = {"session": token, **session.view()}
-                elif self.path == "/api/action":
-                    token = body.get("session")
-                    if not isinstance(token, str) or token not in self.server.sessions:
-                        self.reply(404, {"error": "Session expired. Load the puzzle again."})
-                        return
-                    self.server.sessions.move_to_end(token)
-                    response = self.server.sessions[token].act(body.get("action"), body.get("cursor"))
-                else:
-                    self.reply(404, {"error": "Not found"})
-                    return
+            status, response = self.server.service.dispatch(self.path, body)
         except (ValueError, TypeError) as exc:
             self.reply(400, {"error": str(exc)})
             return
@@ -111,7 +70,7 @@ class Handler(BaseHTTPRequestHandler):
             self.log_error("Unexpected solver failure: %s", traceback.format_exc())
             self.reply(500, {"error": "The solver could not verify this step. Reload the puzzle to retry."})
             return
-        self.reply(200, response)
+        self.reply(status, response)
 
 
 def main():
