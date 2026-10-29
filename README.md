@@ -65,6 +65,7 @@ The local application is also available; see [Launch and use the studio](#launch
 - [x] Add Minimum Remaining Values (MRV) search and row/column/box bitmasks.
 - [x] Add constraint-domain propagation (forward checking plus singles), configurable MRV/degree/LCV heuristics, and backend-only selection.
 - [x] Implement Algorithm X / exact cover with sparse reversible cover/uncover search and candidate-state support.
+- [x] Implement an optional binary MILP solver using SciPy/HiGHS, including no-good cuts for solution counting and candidate-state support.
 - [ ] Compare results with an established solver (e.g., Z3).
 - [ ] Benchmark solve time, search nodes, backtracks, and memory usage.
 - [ ] Evaluate combinations of logical preprocessing and search.
@@ -159,18 +160,22 @@ $env:PYTHONPATH = "src"
 python -m pytest -q tests/solvers/constraint
 ```
 
-## Constraint solving: propagation and exact cover (backend only)
+## Constraint solving: propagation, exact cover, and MILP (backend only)
 
 In addition to the original independent `ReferenceSolver`, the constraint package
 now provides `PropagationSolver` with domain propagation and MRV/degree/LCV
-search heuristics, and `ExactCoverSolver` implementing Algorithm X on a sparse
-324-column exact-cover matrix. `ConstraintSolver` selects `"reference"`,
-`"propagation"`, or `"exact_cover"`. Both newer solvers can continue from a
-`CandidateState` without discarding previous candidate eliminations, supporting
+search heuristics, `ExactCoverSolver` implementing Algorithm X on a sparse
+324-column exact-cover matrix, and `IntegerProgrammingSolver` implementing binary
+integer linear programming through SciPy/HiGHS. `ConstraintSolver` selects
+`"reference"`, `"propagation"`, `"exact_cover"`, or `"integer_programming"`.
+The three newer solvers can continue from a `CandidateState` without discarding
+previous candidate eliminations, supporting
 future **human-logic-first with algorithmic fallback**.
 The UI and logical solver are unchanged; the fallback is **not yet automatic**.
 
-See [constraint solver usage and architecture](docs/constraint_solver.md) for the
+MILP is an optional backend: install with `pip install -e ".[milp]"`. Other
+constraint algorithms work without SciPy. See
+[constraint solver usage and architecture](docs/constraint_solver.md) for the
 API, invariants, metrics, limitations, and benchmarking commands.
 
 ## Interactive deduction studio
@@ -326,7 +331,10 @@ Sudoku_solver/
 │       │   └── deduction.py        # Structured deductions and premises
 │       ├── solvers/
 │       │   ├── constraint/
-│       │   │   └── reference.py    # Independent MRV/bitmask exact solver
+│       │   │   ├── reference.py    # Independent MRV/bitmask exact solver
+│       │   │   ├── propagation.py  # Domain filtering and backtracking
+│       │   │   ├── exact_cover.py  # Algorithm X
+│       │   │   └── integer_programming.py  # Optional SciPy/HiGHS MILP backend
 │       │   └── logical/
 │       │       ├── base.py
 │       │       ├── solver.py       # Technique orchestration

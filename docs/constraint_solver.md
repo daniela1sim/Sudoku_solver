@@ -1,10 +1,11 @@
-# Constraint solvers: propagation and Algorithm X (backend only)
+# Constraint solvers: propagation, Algorithm X, and binary MILP (backend only)
 
-The project now has three independent *algorithms* that solve ordinary Sudoku puzzles:
+The project now has four independent *algorithms* that solve ordinary Sudoku puzzles:
 
 - `ReferenceSolver`: the original, isolated MRV/bitmask backtracker. **Keep this untouched as a correctness oracle** for verifying deductions made by the logical solver. It accepts a clue-based `SudokuBoard` or string and optional explicit forced/forbidden assumptions.
 - `PropagationSolver`: an incremental domain-filtering solver with naked-single and hidden-single propagation followed by deterministic depth-first search. It accepts a string, `SudokuBoard`, **or `CandidateState`**. It assumes candidate eliminations already represented by the state are correct; it does not verify human deductions.
 - `ExactCoverSolver`: a sparse Algorithm X implementation with reversible cover/uncover operations and deterministic minimum-column selection. It also accepts strings, `SudokuBoard` and `CandidateState` without mutating the inputs. It does not import or invoke the other algorithms or the deduction verifier.
+- `IntegerProgrammingSolver`: a binary integer linear programming (MILP) formulation solved through SciPy/HiGHS. It enforces the same 324 exact-cover equalities using 729 binary variables and preserves `CandidateState` exclusions through variable bounds. The dependency is optional; install `pip install -e ".[milp]"` before selecting this backend.
 
 The `ConstraintSolver` facade selects a mathematical backend. These additions do **not** change the web UI, app services, or the logical solver.
 
@@ -13,7 +14,9 @@ The `ConstraintSolver` facade selects a mathematical backend. These additions do
 ```python
 from sudoku.core.board import SudokuBoard
 from sudoku.core.candidates import CandidateState
-from sudoku.solvers.constraint import ConstraintSolver, PropagationSolver, ExactCoverSolver
+from sudoku.solvers.constraint import (
+    ConstraintSolver, PropagationSolver, ExactCoverSolver, IntegerProgrammingSolver
+)
 
 puzzle = SudokuBoard.from_string(
     "530070000600195000098000060800060003400803001"
@@ -40,6 +43,10 @@ assert reference.solve(puzzle).to_string() == answer.to_string()
 # Algorithm X: same public facade; it preserves candidate constraints too.
 exact = ConstraintSolver(algorithm="exact_cover")
 assert exact.solve(state).to_string() == answer.to_string()
+
+# Binary MILP is a fourth selectable backend (requires optional SciPy).
+milp_solver = ConstraintSolver(algorithm="integer_programming")
+assert milp_solver.analyze(state).is_unique
 ```
 
 The facade's `analyze` results share `solutions`, `solution_count`, `exhaustive`, `first_solution`, `is_unique`, `is_unsatisfiable` and `has_multiple_solutions`. Their **statistics classes differ** because their search engines count different events.
@@ -87,6 +94,51 @@ custom `variable_heuristic` or `value_heuristic` options with
 `ConstraintSolver(algorithm="exact_cover")` raises `ValueError` rather than
 silently ignoring them.
 
+## Integer linear programming (MILP / binary integer programming)
+
+Install the optional dependency from the project root:
+
+```bash
+pip install -e '.[milp]'
+```
+
+The `integer_programming` backend uses `scipy.optimize.milp` (HiGHS). It is
+**not** continuous linear programming: every variable is binary, so each
+placement `(row, column, digit)` is either selected or not selected. The
+objective is the constant zero (a feasibility problem). Every variable's
+column in the sparse 324-by-729 incidence matrix has exactly four nonzero
+entries, enforcing cell occupancy, row-digit, column-digit, and box-digit
+requirements. Existing clue placements have lower/upper bound 1; excluded
+placements have upper bound 0. When called with `CandidateState`, the upper
+bounds additionally exclude all eliminated candidates.
+
+MILP solvers normally return one feasible assignment. To count solutions, this
+backend adds a **no-good cut** after each completion:
+
+`sum(x[placement] for placement in previous_solution) <= 80`
+
+The cut excludes precisely that completed grid; all other feasible Sudoku
+grids are still allowed. For `limit=2`, the solver can distinguish a puzzle
+with at least two solutions from one with a unique solution. A **unique**
+answer requires one additional *infeasible* MILP solve after excluding the
+first solution. Reaching the positive cap sets `exhaustive=False`, including
+when `limit=1`. A non-success solver status (e.g., time/resource limit) raises
+`RuntimeError` rather than being interpreted as proof of infeasibility.
+
+The result uses the same properties as the other backends, with separate
+`IntegerProgrammingStatistics`: `milp_calls`, `no_good_cuts` (cuts applied
+across calls), `mip_nodes` (HiGHS branch-and-bound node count, if reported),
+and `elapsed_seconds`. MILP branch-and-bound nodes are **not comparable** with
+DFS nodes from other backends. Unlike Algorithm X, MILP search ordering is
+controlled by HiGHS and not expected to select the same first solution on a
+nonunique puzzle. The implementation and its sparse matrix are lazily imported
+so users without SciPy can still use reference, propagation, and exact cover.
+
+This is experimental: although HiGHS is often efficient, a specialized Sudoku
+solver usually has less initialization and model-building overhead. If you
+intend to expose it through synchronous web requests later, add explicit
+resource limits and error-handling policies first.
+
 ## Heuristics
 
 `variable_heuristic`:
@@ -104,7 +156,7 @@ The heuristic choices affect search order, not which solutions are valid. With a
 
 ## Completeness, termination and counting
 
-For all three backends, `analyze(limit=2)` searches for up to two distinct completed boards. `is_unique` is True only if the **entire search** finished with exactly one solution. A positive result that stops because of the cap has `exhaustive=False`; `limit=1` cannot prove uniqueness.
+For all four backends, `analyze(limit=2)` searches for up to two distinct completed boards. `is_unique` is True only if the **entire search** finished with exactly one solution. A positive result that stops because of the cap has `exhaustive=False`; `limit=1` cannot prove uniqueness.
 
 An unsatisfiable input (with locally valid clues or constrained candidate domains) yields zero solutions and `is_unsatisfiable=True`. Invalid board formats or conflicting initial clues still raise `ValueError` through `SudokuBoard` validation.
 
@@ -141,8 +193,8 @@ Run repeatable small-scale benchmarks:
 PYTHONPATH=src python scripts/benchmark_constraint.py --repeats 5
 ```
 
-The benchmark prints CSV with median **external wall-clock timings** (including input conversion) for all three backends and propagation heuristics, and validates solution classifications against the independent reference solver. Node counts differ in meaning between backends; compare runtimes for performance, not raw nodes. These are small smoke-test benchmarks, not a representative large-dataset performance claim.
+The benchmark prints CSV with median **external wall-clock timings** (including input conversion) for all four backends and propagation heuristics, and validates solution classifications against the independent reference solver. MILP branch/failure fields are `NA` because it does not expose comparable DFS counts. Node counts differ in meaning between backends; compare runtimes for performance, not raw nodes. These are small smoke-test benchmarks, not a representative large-dataset performance claim.
 
 ## Future hybrid mode (not yet part of the application)
 
-A future coordinator can run `LogicalSolver().solve(board)`, return its trace when solved, and on `SolveStatus.STUCK` pass `logical_result.state` **directly** to `PropagationSolver().analyze(...)` or `ExactCoverSolver().analyze(...)`. Do not recreate a plain SudokuBoard from the partially solved grid: that would silently restore candidates that the logical solver already eliminated. Distinguish algorithmic choices/branches from verified human deductions in the user-facing history. Explicitly decide how `STEP_LIMIT`, contradictions and nonunique puzzles should be reported before UI integration.
+A future coordinator can run `LogicalSolver().solve(board)`, return its trace when solved, and on `SolveStatus.STUCK` pass `logical_result.state` **directly** to `PropagationSolver().analyze(...)`, `ExactCoverSolver().analyze(...)`, or `IntegerProgrammingSolver().analyze(...)`. Do not recreate a plain SudokuBoard from the partially solved grid: that would silently restore candidates that the logical solver already eliminated. Distinguish algorithmic choices/branches from verified human deductions in the user-facing history. Explicitly decide how `STEP_LIMIT`, contradictions and nonunique puzzles should be reported before UI integration.

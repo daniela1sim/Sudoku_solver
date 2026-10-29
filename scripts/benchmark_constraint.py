@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 from statistics import median
 from time import perf_counter
-from sudoku.solvers.constraint import ExactCoverSolver, PropagationSolver, ReferenceSolver
+from sudoku.solvers.constraint import ExactCoverSolver, PropagationSolver, ReferenceSolver, IntegerProgrammingSolver
 
 PUZZLES = {
     "classic": "530070000600195000098000060800060003400803001700020006060000280000419005000080079",
@@ -31,6 +31,7 @@ def run(repeats: int = 3) -> None:
     solvers = {
         "reference": ReferenceSolver(),
         "exact_cover": ExactCoverSolver(),
+        "integer_programming": IntegerProgrammingSolver(),
         "propagation_mrv": PropagationSolver(),
         "propagation_mrv_degree": PropagationSolver(variable_heuristic="mrv_degree"),
         "propagation_mrv_degree_lcv": PropagationSolver(variable_heuristic="mrv_degree", value_heuristic="lcv"),
@@ -57,11 +58,21 @@ def run(repeats: int = 3) -> None:
                     raise AssertionError(f"{algorithm} produced an unexpected solution")
             sample = observations[0]
             stats = [r.statistics for r in observations]
-            branches = [getattr(s, "decisions", getattr(s, "branches", 0)) for s in stats]
-            failed = [getattr(s, "backtracks", getattr(s, "dead_ends", 0)) for s in stats]
+            if algorithm == "integer_programming":
+                # HiGHS MIP node counts are not analogous to DFS nodes.
+                # Branch and failure counters are unavailable for this backend.
+                node_values = [s.mip_nodes for s in stats if s.mip_nodes is not None]
+                nodes = f"{median(node_values):g}" if node_values else "NA"
+                branch_count = failed_count = "NA"
+            else:
+                nodes = f"{median(s.nodes for s in stats):g}"
+                branches = [getattr(s, "decisions", getattr(s, "branches", 0)) for s in stats]
+                failed = [getattr(s, "backtracks", getattr(s, "dead_ends", 0)) for s in stats]
+                branch_count = f"{median(branches):g}"
+                failed_count = f"{median(failed):g}"
             print(
                 f"{puzzle_name},{algorithm},{median(elapsed):.6f},"
-                f"{median(s.nodes for s in stats):g},{median(branches):g},{median(failed):g},"
+                f"{nodes},{branch_count},{failed_count},"
                 f"{sample.solution_count},{str(sample.exhaustive).lower()}"
             )
 
