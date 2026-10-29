@@ -4,7 +4,30 @@ An extensible Python project for solving Sudoku puzzles with **human-style logic
 
 The central goal is not merely to produce a completed grid, but to make the solving process **correct, traceable, and explainable**: every logical placement or candidate elimination should be supported by an explicit justification.
 
-> **Project status:** Active development. The explainable logical-solving engine, interactive hints/replay application, independent exact reference solver, and experimental local image importer are implemented. Broader image-recognition coverage, additional constraint-solving methods, and ML/LLM experiments remain planned.
+> **Project status:** Active development. The explainable logical-solving engine, interactive hints/replay application, independent exact reference solver, experimental image importer, and public web deployment are implemented. Broader image-recognition coverage, additional constraint-solving methods, and ML/LLM experiments remain planned.
+
+## Try the website
+
+**[Open Sudoku Deduction Studio](https://sudoku-deduction-studio.onrender.com/)**
+
+Enter a puzzle, choose logical techniques, request gradual hints, or replay the
+verified deductions step by step. You can also import a printed puzzle image
+and review the recognized digits before solving. No installation is needed.
+
+The demo runs on Render's free plan. After 15 minutes without traffic, the
+service sleeps; the next visit may take about a minute to load. Replay sessions
+are stored in server memory and can expire when the service sleeps, restarts,
+or replaces older sessions. Reload your puzzle to start again.
+
+Images uploaded to the website are processed on the hosting server and are not
+saved by the application. Recognition is experimental; review every digit.
+
+## Hosting your own copy
+
+The repository includes a [Render Blueprint](render.yaml) and a hosted
+Flask application served by Gunicorn. Follow the [deployment guide](docs/deployment.md)
+to deploy your own free instance, configure its public URL, and run hosting checks.
+The local application is also available; see [Launch and use the studio](#launch-and-use-the-studio).
 
 ## Project goals
 
@@ -127,8 +150,7 @@ it does not require an exact-solver precheck.
 See [the reference solver documentation](docs/reference_solver.md) for the full
 API, assumptions, audit examples, and performance considerations. The added files
 are `src/sudoku/solvers/constraint/`, `tests/solvers/constraint/`, and
-`docs/reference_solver.md`; [PATCH_README.md](PATCH_README.md) preserves the supplied
-patch's application notes and its original validation context.
+`docs/reference_solver.md`.
 
 Run its tests from the repository root:
 
@@ -268,9 +290,9 @@ generated caches and Git internals are omitted.
 ```text
 Sudoku_solver/
 ├── README.md
-├── PATCH_README.md                 # Historical reference-solver patch notes
 ├── .gitignore
 ├── pyproject.toml
+├── render.yaml                    # Free Render hosting configuration
 ├── docs/
 │   ├── reference_solver.md         # Exact solver API and correctness audits
 │   └── sample-puzzle.png           # Generated perspective image to try
@@ -371,18 +393,19 @@ is `python -m sudoku.app`. Examples for individual logical techniques follow bel
 Run the tests from the repository root:
 
 ```powershell
-python -m pip install -e ".[dev,vision]"
+python -m pip install -e ".[dev,web,vision]"
 $env:PYTHONPATH = "src"
 python -m pytest -q
 ```
 
 Tests cover candidate updates, logical techniques, deduction verification,
 hint previews, replay state restoration, technique selection, the local HTTP API,
+the hosted HTTPS API and its origin and upload-size checks,
 reference-solver solution counting and assumptions, and independent audits of
 logical deductions against original clues, image recognition, blank-cell handling,
-grid-border filtering, and invalid image uploads. Use `.[dev]` instead if only
-the core application is needed; vision tests skip when their dependencies are
-unavailable. To run just the importer and upload API checks:
+grid-border filtering, and invalid image uploads. Use `.[dev,web]` to omit
+image dependencies; vision tests skip when their dependencies are unavailable.
+The hosted API tests require the `web` extra. To run just the importer and upload API checks:
 
 ```powershell
 python -m pytest -q tests/vision tests/app/test_server.py
@@ -467,7 +490,6 @@ The patch retains independent Fish verification through `fish_proofs.py`.
 Regression tests in `tests/solvers/logical/test_wing_proof_independence.py`
 disable discovery helpers during verification, exercise forged witnesses and
 W-Wing conjugate links, and audit real-puzzle effects with `ReferenceSolver`.
-See [the Wing verification patch notes](WING_VERIFICATION_PATCH_README.md).
 
 ```powershell
 $env:PYTHONPATH = "src"
