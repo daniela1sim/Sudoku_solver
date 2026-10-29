@@ -195,6 +195,17 @@ PYTHONPATH=src python scripts/benchmark_constraint.py --repeats 5
 
 The benchmark prints CSV with median **external wall-clock timings** (including input conversion) for all four backends and propagation heuristics, and validates solution classifications against the independent reference solver. MILP branch/failure fields are `NA` because it does not expose comparable DFS counts. Node counts differ in meaning between backends; compare runtimes for performance, not raw nodes. These are small smoke-test benchmarks, not a representative large-dataset performance claim.
 
-## Future hybrid mode (not yet part of the application)
+## Hybrid solving coordinator (backend only)
 
-A future coordinator can run `LogicalSolver().solve(board)`, return its trace when solved, and on `SolveStatus.STUCK` pass `logical_result.state` **directly** to `PropagationSolver().analyze(...)`, `ExactCoverSolver().analyze(...)`, or `IntegerProgrammingSolver().analyze(...)`. Do not recreate a plain SudokuBoard from the partially solved grid: that would silently restore candidates that the logical solver already eliminated. Distinguish algorithmic choices/branches from verified human deductions in the user-facing history. Explicitly decide how `STEP_LIMIT`, contradictions and nonunique puzzles should be reported before UI integration.
+The `sudoku.solvers.hybrid.HybridSolver` coordinator now supports `"logical"`,
+`"constraint"`, and `"hybrid"` modes. The hybrid mode runs the existing
+verified logical solver first and only starts the selected mathematical solver
+when it returns `STUCK`, unless step-limit fallback is explicitly enabled.
+Both logical placements and candidate eliminations survive handoff. The
+reference backend receives exclusions as explicit `forbidden` assumptions.
+Logical deductions and algorithmic completions are reported separately;
+algorithmic choices are not mislabeled as human logic steps.
+
+See [hybrid solving documentation](hybrid_solver.md) for API examples, result
+fields, stopping rules, contradiction behavior, and regression tests.
+No UI, app, or logical technique changes have been made.

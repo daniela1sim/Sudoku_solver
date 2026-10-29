@@ -169,14 +169,42 @@ search heuristics, `ExactCoverSolver` implementing Algorithm X on a sparse
 integer linear programming through SciPy/HiGHS. `ConstraintSolver` selects
 `"reference"`, `"propagation"`, `"exact_cover"`, or `"integer_programming"`.
 The three newer solvers can continue from a `CandidateState` without discarding
-previous candidate eliminations, supporting
-future **human-logic-first with algorithmic fallback**.
-The UI and logical solver are unchanged; the fallback is **not yet automatic**.
+previous candidate eliminations. The new **backend-only hybrid coordinator**
+implements human-logic-first fallback without changing the UI or logical
+engine. The `reference` backend also supports hybrid handoff through explicit
+forbidden-candidate assumptions.
 
 MILP is an optional backend: install with `pip install -e ".[milp]"`. Other
 constraint algorithms work without SciPy. See
 [constraint solver usage and architecture](docs/constraint_solver.md) for the
 API, invariants, metrics, limitations, and benchmarking commands.
+
+## Hybrid solving coordinator (backend only)
+
+The `HybridSolver` in `src/sudoku/solvers/hybrid/` exposes three policies:
+`mode="logical"` (human deductions only), `mode="constraint"` (mathematical
+search immediately), and `mode="hybrid"` (human deductions first, mathematical
+fallback on `STUCK`). The default fallback backend is propagation, and all four
+constraint algorithms are supported. Logical `STEP_LIMIT` does **not** trigger
+fallback unless `fallback_on_step_limit=True` is explicitly requested.
+
+```python
+from sudoku.solvers.hybrid import HybridSolver
+
+solver = HybridSolver(mode="hybrid", constraint_algorithm="exact_cover")
+result = solver.solve(puzzle, solution_limit=2)
+print(result.status.value, result.completed_by, result.used_fallback)
+print(result.first_solution)
+```
+
+`result.steps` and `result.logical_result` contain only verified human steps;
+`result.handoff_state` preserves eliminations at the fallback boundary, and
+`result.constraint_result` contains the mathematical search evidence and stats.
+Algorithmic placements are not represented as human deductions. The web UI and
+replay session remain unchanged; these policies are currently Python-only.
+
+For usage, caveats, and test instructions, see
+[hybrid coordinator documentation](docs/hybrid_solver.md).
 
 ## Interactive deduction studio
 
