@@ -1,14 +1,12 @@
-"""Mathematical Sudoku solvers, separate from human logical techniques.
-
-``ReferenceSolver`` remains an independent clue-based correctness oracle.
-``PropagationSolver`` also accepts candidate-state constraints for hybrid use.
-"""
+"""Independent mathematical Sudoku backends (no human-logic coupling)."""
 
 from .reference import ReferenceResult, ReferenceSolver, SearchStatistics
 from .propagation import PropagationResult, PropagationSolver, PropagationStatistics
+from .exact_cover import ExactCoverResult, ExactCoverSolver, ExactCoverStatistics
 from .solver import ConstraintSolver
 
 __all__ = [
     "ReferenceResult", "ReferenceSolver", "SearchStatistics",
-    "PropagationResult", "PropagationSolver", "PropagationStatistics", "ConstraintSolver",
+    "PropagationResult", "PropagationSolver", "PropagationStatistics",
+    "ExactCoverResult", "ExactCoverSolver", "ExactCoverStatistics", "ConstraintSolver",
 ]

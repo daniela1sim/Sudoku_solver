@@ -3,8 +3,8 @@
 From the project root:
     PYTHONPATH=src python scripts/benchmark_constraint.py --repeats 5
 
-Times measure each backend's analyze() search-timing window (domain setup is
-excluded by the propagation backend).
+Times are measured around each full analyze() invocation so all solver
+backends include input parsing, domain/matrix construction, and search.
 They are not reliable across machines. Node and failure counts use different
 conventions in each solver; compare them only within the same implementation.
 """
@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import argparse
 from statistics import median
-from sudoku.solvers.constraint import PropagationSolver, ReferenceSolver
+from time import perf_counter
+from sudoku.solvers.constraint import ExactCoverSolver, PropagationSolver, ReferenceSolver
 
 PUZZLES = {
     "classic": "530070000600195000098000060800060003400803001700020006060000280000419005000080079",
@@ -29,6 +30,7 @@ def run(repeats: int = 3) -> None:
         raise ValueError("repeats must be positive")
     solvers = {
         "reference": ReferenceSolver(),
+        "exact_cover": ExactCoverSolver(),
         "propagation_mrv": PropagationSolver(),
         "propagation_mrv_degree": PropagationSolver(variable_heuristic="mrv_degree"),
         "propagation_mrv_degree_lcv": PropagationSolver(variable_heuristic="mrv_degree", value_heuristic="lcv"),
@@ -37,7 +39,13 @@ def run(repeats: int = 3) -> None:
     for puzzle_name, puzzle in PUZZLES.items():
         oracle = ReferenceSolver().analyze(puzzle)
         for algorithm, solver in solvers.items():
-            observations = [solver.analyze(puzzle) for _ in range(repeats)]
+            observations = []
+            elapsed = []
+            for _ in range(repeats):
+                start = perf_counter()
+                result = solver.analyze(puzzle)
+                elapsed.append(perf_counter() - start)
+                observations.append(result)
             for result in observations:
                 if (result.solution_count != oracle.solution_count
                         or result.is_unique != oracle.is_unique
@@ -52,7 +60,7 @@ def run(repeats: int = 3) -> None:
             branches = [getattr(s, "decisions", getattr(s, "branches", 0)) for s in stats]
             failed = [getattr(s, "backtracks", getattr(s, "dead_ends", 0)) for s in stats]
             print(
-                f"{puzzle_name},{algorithm},{median(s.elapsed_seconds for s in stats):.6f},"
+                f"{puzzle_name},{algorithm},{median(elapsed):.6f},"
                 f"{median(s.nodes for s in stats):g},{median(branches):g},{median(failed):g},"
                 f"{sample.solution_count},{str(sample.exhaustive).lower()}"
             )

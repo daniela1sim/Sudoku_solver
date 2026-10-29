@@ -2,7 +2,7 @@
 
 No UI or logical-solving code depends on this dispatcher. A future hybrid
 solver can pass its CandidateState to the propagation backend to resume search
-without losing candidate exclusions.
+without losing candidate exclusions. Exact cover also supports those exclusions.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 from sudoku.core.board import SudokuBoard
 from sudoku.core.candidates import CandidateState
 from .propagation import PropagationResult, PropagationSolver
+from .exact_cover import ExactCoverResult, ExactCoverSolver
 from .reference import ReferenceResult, ReferenceSolver
 
 
@@ -17,7 +18,7 @@ class ConstraintSolver:
     """Select an exact constraint backend without changing application/UI code.
 
     ``algorithm='reference'`` is available only for clue-based board inputs.
-    The propagation backend additionally understands ``CandidateState``.
+    Both propagation and exact-cover backends understand ``CandidateState``.
     Both implementations return a result with solutions, solution_count,
     exhaustive, first_solution, is_unique, and is_unsatisfiable properties.
     """
@@ -28,14 +29,18 @@ class ConstraintSolver:
             if variable_heuristic != "mrv" or value_heuristic != "ascending":
                 raise ValueError("Search heuristics cannot be configured for the reference solver")
             self.backend = ReferenceSolver()
+        elif algorithm == "exact_cover":
+            if variable_heuristic != "mrv" or value_heuristic != "ascending":
+                raise ValueError("Search heuristics cannot be configured for the exact-cover solver")
+            self.backend = ExactCoverSolver()
         elif algorithm == "propagation":
             self.backend = PropagationSolver(variable_heuristic=variable_heuristic,
                                              value_heuristic=value_heuristic)
         else:
-            raise ValueError("algorithm must be 'reference' or 'propagation'")
+            raise ValueError("algorithm must be 'reference', 'propagation', or 'exact_cover'")
         self.algorithm = algorithm
 
-    def analyze(self, puzzle: SudokuBoard | CandidateState | str, *, limit: int = 2) -> ReferenceResult | PropagationResult:
+    def analyze(self, puzzle: SudokuBoard | CandidateState | str, *, limit: int = 2) -> ReferenceResult | PropagationResult | ExactCoverResult:
         if self.algorithm == "reference" and isinstance(puzzle, CandidateState):
             raise TypeError("reference solver accepts only SudokuBoard or puzzle string")
         return self.backend.analyze(puzzle, limit=limit)
