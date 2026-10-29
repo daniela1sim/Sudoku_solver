@@ -63,7 +63,7 @@ The local application is also available; see [Launch and use the studio](#launch
 
 - [x] Implement an independent reference solver using recursive backtracking.
 - [x] Add Minimum Remaining Values (MRV) search and row/column/box bitmasks.
-- [ ] Add forward checking and compare search heuristics.
+- [x] Add constraint-domain propagation (forward checking plus singles), configurable MRV/degree/LCV heuristics, and backend-only selection.
 - [ ] Implement Algorithm X / exact cover.
 - [ ] Compare results with an established solver (e.g., Z3).
 - [ ] Benchmark solve time, search nodes, backtracks, and memory usage.
@@ -158,6 +158,18 @@ Run its tests from the repository root:
 $env:PYTHONPATH = "src"
 python -m pytest -q tests/solvers/constraint
 ```
+
+## Propagation-based constraint solving (backend only)
+
+In addition to the original independent `ReferenceSolver`, the constraint package
+now provides `PropagationSolver` with domain propagation, MRV/degree/LCV
+search heuristics, and `ConstraintSolver` for selecting a backend. The propagation
+solver can continue from a `CandidateState` without discarding previous candidate
+eliminations, which supports future **human-logic-first with algorithmic fallback**.
+The UI and logical solver are unchanged; the fallback is **not yet automatic**.
+
+See [constraint solver usage and architecture](docs/constraint_solver.md) for the
+API, invariants, metrics, limitations, and benchmarking commands.
 
 ## Interactive deduction studio
 
