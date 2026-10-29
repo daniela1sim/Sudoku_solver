@@ -488,9 +488,28 @@ python -m pytest -q tests/vision tests/app/test_server.py
 The HTTP integration tests need permission to connect to temporary localhost
 servers. The default test discovery root is `tests/`, as configured in
 `pyproject.toml`, including the independent fish-proof regression tests.
-Benchmarks
-remain planned and will distinguish **human-style difficulty** from
-**algorithmic search complexity**, which need not correlate.
+The existing single-puzzle constraint benchmark and the new dataset benchmark
+distinguish **human-style difficulty** from **algorithmic search complexity**,
+which need not correlate.
+
+## Reproducible Sudoku puzzle corpus (144 fixtures)
+
+The [`data/puzzles.jsonl`](data/puzzles.jsonl) dataset contains **144 generated Sudoku puzzles** with **36 puzzles each** in four *project-specific, technique-based* tiers: easy (singles), medium (locked candidates/subsets), hard (selected advanced techniques), and expert (selected advanced techniques get stuck). The last tier **does not claim** that the full human solver cannot solve the puzzle; see [`data/README.md`](data/README.md) for the exact technique definitions and caveats. Clue count alone does not determine the tier. These dataset tiers are separate from the app's numeric local difficulty estimate.
+
+Every puzzle contains its full 81-digit solution, given count, human-technique profile, and reference search counters. Unique solvability is verified with the independent reference oracle, and the dataset tests compare reference, propagation, and exact cover on **every fixture**. All puzzles are generated locally using a seeded randomized complete-grid search and uniqueness-preserving clue removal; see [`scripts/generate_puzzles.py`](scripts/generate_puzzles.py).
+
+```bash
+# Recreate the committed dataset (seed and classifier versions are fixed).
+PYTHONPATH=src python scripts/generate_puzzles.py --seed 20261029 --count-per-tier 36
+# Validate structure, solution uniqueness and three independent solvers.
+PYTHONPATH=src python -m pytest tests/data/test_puzzle_dataset.py -q
+# Generate repeatable CSV timings on a small representative subset.
+PYTHONPATH=src python scripts/benchmark_dataset.py --per-tier 5 --repeats 3 > benchmark.csv
+# Benchmark every puzzle, if desired.
+PYTHONPATH=src python scripts/benchmark_dataset.py --per-tier 0 --repeats 1 > full_benchmark.csv
+```
+
+The benchmark also supports `--algorithms integer_programming` (requires SciPy) and `--algorithms hybrid` (runs all human techniques and may be significantly slower). These measurements distinguish technique-based solvability from algorithmic complexity and are not machine-independent.
 
 ## Contributing
 
