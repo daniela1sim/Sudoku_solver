@@ -13,6 +13,11 @@
       <section class="board-panel" aria-label="Sudoku workspace">
         <div class="panel-heading"><div><span class="eyebrow" id="board-label">YOUR PUZZLE</span><h2 id="board-title">Set the starting grid</h2></div><label class="toggle"><input type="checkbox" id="notes" checked> Candidates</label></div>
         <div id="board" class="board" role="group" aria-label="Sudoku grid"></div>
+        <div id="rating-panel" hidden aria-live="polite">
+          <p><strong id="rating-value"></strong></p>
+          <p class="muted" id="rating-detail"></p>
+          <details><summary>About this estimate</summary><p class="muted">Local estimate on a 1.0–11.9 scale, inspired by Sudoku Explainer. This is not an official SE or Sudoku Coach rating. It uses the hardest technique in this replay; your technique selection, uniqueness assumption, and search limits affect the result. Current technique scores reach 8.5; higher forcing-chain levels are not implemented. An incomplete replay cannot establish a board rating.</p></details>
+        </div>
         <div id="number-pad" class="number-pad" role="group" aria-label="Enter a digit in the selected cell"></div>
         <div class="legend"><span><i class="dot clue"></i>Clue</span><span><i class="dot premise"></i>Reasoning</span><span><i class="dot effect"></i>Placement</span><span><i class="dot removal"></i>Elimination</span></div>
         <div id="replay" hidden>

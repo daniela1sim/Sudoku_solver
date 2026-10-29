@@ -208,6 +208,20 @@ function explain() {
   $('deeper').textContent = hintLevel === 1 ? 'Show where to look' : 'Reveal the deduction';
 }
 function render() {
+  $('rating-panel').hidden = !session;
+  if (session) {
+    const rating = view.rating;
+    $('rating-value').textContent = rating.score !== null
+      ? `Local difficulty estimate: ${rating.score.toFixed(1)} / ${rating.scale_max.toFixed(1)}`
+      : rating.status === 'already_complete' ? 'Local estimate: already filled'
+      : rating.status === 'contradiction' ? 'Local estimate: unavailable (contradiction)'
+      : 'Local estimate: incomplete';
+    $('rating-detail').textContent = rating.score !== null
+      ? `Hardest recorded technique: ${rating.hardest_technique}. Based on the full replay with your selected techniques.`
+      : rating.observed_peak !== null
+      ? `Observed technique peak: ${rating.observed_peak.toFixed(1)} (${rating.hardest_technique}). This is not a final board rating.`
+      : 'No difficulty score is available for this board with the current replay.';
+  }
   $('setup').hidden = !!session;
   for (const id of ['replay', 'deduction', 'history-card']) $(id).hidden = !session;
   $('board-help').hidden = !!session;

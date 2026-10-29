@@ -3,6 +3,7 @@
 from sudoku.core.board import SudokuBoard
 from sudoku.core.candidates import CandidateState, CandidateContradiction
 from sudoku.app.techniques import selected_solver
+from sudoku.solvers.logical.rating import estimate_rating
 
 
 def describe(deduction):
@@ -84,6 +85,9 @@ class ReplaySession:
         state = self.states[self.cursor]
         board = state.board
         return {
+            "rating": estimate_rating(self.steps,
+                                      complete=self.states[-1].is_complete(),
+                                      contradiction=self.contradiction is not None),
             "techniques": [t.name for t in self.solver.techniques],
             "grid": board.to_string(),
             "givens": sorted(board.givens),

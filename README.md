@@ -29,6 +29,30 @@ Flask application served by Gunicorn. Follow the [deployment guide](docs/deploym
 to deploy your own free instance, configure its public URL, and run hosting checks.
 The local application is also available; see [Launch and use the studio](#launch-and-use-the-studio).
 
+## Local difficulty estimate
+
+Starting a puzzle displays a **local difficulty estimate** on a 1.0–11.9
+scale. This is inspired by Sudoku Explainer, but is not an official SE or
+Sudoku Coach rating. The score is the maximum technique weight across the
+full recorded replay and stays fixed when browsing it. Technique selection,
+solver ordering, search bounds and the uniqueness assumption can change the
+result: it is a solve-path estimate, not an externally calibrated rating.
+
+Versioned weights live in `src/sudoku/solvers/logical/rating.py`. Singles
+distinguish last values (1.0), box hidden singles (1.2), line hidden singles
+(1.5), and naked singles (2.3) using the candidate state. Advanced weights
+are local approximations without SE chain-complexity modifiers. Supported
+weights currently reach 8.5; higher forcing-chain families are not implemented.
+Getting stuck never automatically assigns a score of 11.9.
+
+Unfinished replays show an observed technique peak, not a final score or a
+mathematical lower bound on difficulty. Contradictory puzzles and already
+filled grids receive no score. API responses include a `rating` object with
+method `local-technique-v1`, status, nullable score, observed peak, hardest
+technique, and scale maximum.
+
+Scale reference: [Sukaku Explainer technique ratings](https://github.com/SudokuMonster/SukakuExplainer/wiki/Difficulty-Ratings-in-Sukaku-Explainer-v1.17.8).
+
 ## Project goals
 
 1. **Explainable logical solving:** Implement human Sudoku techniques, from singles and subsets to advanced patterns and inference chains. Record the premises and consequences of each deduction.
