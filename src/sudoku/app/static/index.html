@@ -13,6 +13,7 @@
       <section class="board-panel" aria-label="Sudoku workspace">
         <div class="panel-heading"><div><span class="eyebrow" id="board-label">YOUR PUZZLE</span><h2 id="board-title">Set the starting grid</h2></div><label class="toggle"><input type="checkbox" id="notes" checked> Candidates</label></div>
         <div id="board" class="board" role="group" aria-label="Sudoku grid"></div>
+        <div id="number-pad" class="number-pad" role="group" aria-label="Enter a digit in the selected cell"></div>
         <div class="legend"><span><i class="dot clue"></i>Clue</span><span><i class="dot premise"></i>Reasoning</span><span><i class="dot effect"></i>Placement</span><span><i class="dot removal"></i>Elimination</span></div>
         <div id="replay" hidden>
           <p class="muted">The full available replay is ready when you start. Browse recorded steps, or request gradual hints before moving forward.</p>
@@ -20,7 +21,7 @@
           <div class="transport"><button id="first" title="Go to initial state">|←</button><button id="back">← Back</button><button id="play" title="Replay recorded moves only">▶ Play</button><button id="next" title="Replay the next recorded move">Next →</button></div>
           <label class="scrubber"><span id="position">Step 0 of 0</span><input type="range" id="timeline" min="0" max="0" value="0" aria-label="Replay position"></label>
         </div>
-        <p id="board-help" class="muted">Click a cell and type 1–9. Use arrow keys to move; Delete to clear.</p>
+        <p id="board-help" class="muted">Select a cell, then type 1–9 or use the number pad. Arrow keys move; Delete clears.</p>
       </section>
       <aside>
         <section class="card" id="setup">
@@ -32,7 +33,7 @@
           <div class="small-actions"><button id="import">Use string</button><button id="example">Load example</button><button id="clear">Clear grid</button></div>
           <details class="image-import">
             <summary>Import a puzzle image · experimental</summary>
-            <p class="muted">Use an upright printed puzzle with a clear, complete grid. PNG, JPEG, or WebP; up to 8 MiB and 16 megapixels. Processing stays on this computer.</p>
+            <p class="muted">Use an upright printed puzzle with a clear, complete grid. PNG, JPEG, or WebP; up to 8 MiB and 16 megapixels.</p>
             <p>Images are sent to the server for recognition and are not saved. Review the detected digits before solving.</p>
             <label for="puzzle-image">Puzzle image</label>
             <input id="puzzle-image" type="file" accept="image/png,image/jpeg,image/webp">

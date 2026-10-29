@@ -75,6 +75,7 @@ function controls() {
   $('image-confirm').disabled = busy;
   $('unique').disabled = busy;
   for (const id of ['techniques-all', 'techniques-singles', 'techniques-none']) $(id).disabled = busy || !catalogReady;
+  for (const button of $('number-pad').children) button.disabled = busy || !!session;
   updateTechniqueOptions();
   if (session && view && !busy) {
     $('first').disabled = $('back').disabled = view.cursor === 0;
@@ -210,6 +211,7 @@ function render() {
   $('setup').hidden = !!session;
   for (const id of ['replay', 'deduction', 'history-card']) $(id).hidden = !session;
   $('board-help').hidden = !!session;
+  $('number-pad').hidden = !!session;
   $('board-label').textContent = session ? 'YOUR SOLVING SPACE' : 'YOUR PUZZLE';
   $('board-title').textContent = session ? (view.status === 'solved' ? 'Puzzle complete' : view.status === 'contradiction' ? 'Contradiction reached' : view.status === 'stuck' ? 'End of the available path' : 'Find your next move') : 'Set the starting grid';
   renderBoard();
@@ -286,6 +288,25 @@ for (let i = 0; i < 81; i++) {
   };
   cells.push(cell);
   $('board').append(cell);
+}
+// Touch devices can enter clues without requiring a hardware keyboard.
+for (const digit of ['1','2','3','4','5','6','7','8','9','0']) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = digit === '0' ? 'Clear' : digit;
+  button.setAttribute('aria-label', digit === '0' ? 'Clear selected cell' : `Enter ${digit}`);
+  button.onclick = () => {
+    if (busy || session) return;
+    draft[selected] = digit;
+    $('puzzle').value = draft.join('');
+    if (imageReview) {
+      imageReview.cells[selected].review = false;
+      $('image-confirm').checked = false;
+    }
+    renderBoard();
+    controls();
+  };
+  $('number-pad').append(button);
 }
 $('notes').onchange = renderBoard;
 function loadExample() {
