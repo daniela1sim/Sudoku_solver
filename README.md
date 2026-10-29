@@ -29,6 +29,34 @@ Flask application served by Gunicorn. Follow the [deployment guide](docs/deploym
 to deploy your own free instance, configure its public URL, and run hosting checks.
 The local application is also available; see [Launch and use the studio](#launch-and-use-the-studio).
 
+## Explicit solvability and uniqueness check
+
+Before starting a replay, click **Check solvability / uniqueness** to analyze
+the clues currently shown in the grid. After pasting a puzzle, click **Use
+string** first; imported images must be reviewed and confirmed first.
+The result reports **no solution**, **exactly one solution**, or **multiple
+solutions (at least two)**. Malformed input or conflicting givens produces an
+input error instead. Editing the grid clears a previous check result.
+
+This invokes the independent `ReferenceSolver.analyze(puzzle, limit=2)`.
+Zero or one solution requires exhaustive search; finding two is enough to
+prove non-uniqueness without enumerating all completions. It uses the original
+grid clues, not logical candidate eliminations or selected techniques.
+Checking neither starts a replay nor fills cells or reveals completed grids.
+
+The **Assume this puzzle has a unique solution** checkbox remains a separate
+manual choice that enables uniqueness-based logical techniques. Checking does
+not toggle it, and toggling it does not verify the puzzle.
+
+Both local and hosted applications accept `POST /api/check` with JSON
+`{"puzzle": "<81 digits or dots>"}`. A successful response has `status`
+(`unsatisfiable`, `unique`, or `multiple`), `solution_count` (capped at two),
+and `count_is_exact` (false when search stops at two). The request uses the
+same origin, JSON and body-size protections as the other puzzle endpoints.
+Checks run outside the replay-session lock. Search is synchronous and has no
+internal time budget, so unusually difficult checks may take time; a failed
+request must not be interpreted as a solvability result.
+
 ## Local difficulty estimate
 
 Starting a puzzle displays a **local difficulty estimate** on a 1.0–11.9
@@ -124,7 +152,7 @@ These are proposed follow-up tasks, not capabilities of the current application.
 
 **Solver and application**
 
-- [ ] Offer an explicit solvability/uniqueness check through `ReferenceSolver`, distinct from the existing uniqueness assumption checkbox.
+- [x] Offer an explicit solvability/uniqueness check through `ReferenceSolver`, distinct from the existing uniqueness assumption checkbox.
 - [ ] Save and restore puzzle drafts, technique choices, and replay history across page refreshes.
 - [ ] Profile advanced technique searches and add reproducible performance benchmarks before increasing search bounds.
 - [ ] Extend independent oracle checks and proof-verification tests when adding or changing techniques.

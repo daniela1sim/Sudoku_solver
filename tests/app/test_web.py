@@ -62,3 +62,40 @@ def test_render_origin_configuration(monkeypatch):
     assert create_app().test_client().post('/api/start', base_url=URL, json={'puzzle': PUZZLE}).status_code == 200
     with pytest.raises(ValueError):
         create_app('https://example.com/path')
+
+
+@pytest.mark.parametrize('puzzle,status,count,exact', [
+    (PUZZLE, 'unique', 1, True),
+    ('0' * 81, 'multiple', 2, False),
+    ('147000003250001000309000000080020004000410020900000600003000009400002000001008007',
+     'unsatisfiable', 0, True),
+])
+def test_check_outcomes(client, puzzle, status, count, exact):
+    response = post(client, '/api/check', {'puzzle': puzzle})
+    assert response.status_code == 200
+    assert response.json == {'status': status, 'solution_count': count, 'count_is_exact': exact}
+
+
+@pytest.mark.parametrize('puzzle', [None, 123, '', '0' * 80, 'x' * 81, '11' + '0' * 79])
+def test_check_rejects_invalid_input(client, puzzle):
+    assert post(client, '/api/check', {'puzzle': puzzle}).status_code == 400
+
+
+def test_check_has_same_request_protection(client):
+    assert post(client, '/api/check', {'puzzle': PUZZLE}, headers={'Origin': 'https://evil.example'}).status_code == 403
+    assert post(client, '/api/check', {'puzzle': '0' * 5000}).status_code == 413
+    assert post(client, '/api/check', []).status_code == 400
+
+
+def test_check_does_not_change_replay_or_depend_on_assumption():
+    from sudoku.app.service import SudokuService
+    service = SudokuService()
+    _, initial = service.dispatch('/api/start', {'puzzle': PUZZLE, 'techniques': []})
+    session = service.sessions[initial['session']]
+    before = session.view()
+    for assumed in (False, True):
+        _, result = service.dispatch('/api/check', {
+            'puzzle': '0' * 81, 'allow_uniqueness': assumed, 'techniques': []})
+        assert result['status'] == 'multiple'
+    assert session.view() == before
+    assert len(service.sessions) == 1

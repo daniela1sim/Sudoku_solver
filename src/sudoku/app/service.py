@@ -6,6 +6,7 @@ import threading
 from uuid import uuid4
 
 from sudoku.app.session import ReplaySession
+from sudoku.solvers.constraint.reference import ReferenceSolver
 
 
 class SudokuService:
@@ -14,6 +15,20 @@ class SudokuService:
         self.session_lock = threading.Lock()
 
     def dispatch(self, path, body):
+        if path == "/api/check":
+            puzzle = body.get("puzzle")
+            if not isinstance(puzzle, str):
+                raise ValueError("Enter an 81-character puzzle")
+            # Independent of replay candidates, technique choices and the
+            # uniqueness assumption. Do not hold the session lock during search.
+            result = ReferenceSolver().analyze(puzzle, limit=2)
+            status = ("unsatisfiable" if result.is_unsatisfiable else
+                      "unique" if result.is_unique else "multiple")
+            return 200, {
+                "status": status,
+                "solution_count": result.solution_count,
+                "count_is_exact": result.exhaustive,
+            }
         if path == "/api/image":
             from sudoku.vision import read_image
             encoded = body.get("image")

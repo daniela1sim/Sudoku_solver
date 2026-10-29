@@ -50,7 +50,10 @@
               <label><input id="image-confirm" type="checkbox"> I reviewed the grid against the image</label>
             </div>
           </details>
-          <label class="unique"><input type="checkbox" id="unique"> Assume this puzzle has a unique solution <small>Enables uniqueness-based techniques.</small></label>
+          <button class="wide secondary" id="check-puzzle" type="button">Check solvability / uniqueness</button>
+          <p class="muted">Checks the clues currently in the grid without revealing a solution. After pasting a string, select Use string first.</p>
+          <p id="check-result" role="status" aria-live="polite"></p>
+          <label class="unique"><input type="checkbox" id="unique"> Assume this puzzle has a unique solution <small>Enables uniqueness-based techniques. This assumption does not perform a check; checking does not change this option.</small></label>
           <details class="technique-settings">
             <summary>Logical techniques <span id="technique-count">Loading…</span></summary>
             <p class="muted">Choose techniques before starting. Replay and hints use only your selection, in the solver’s usual order.</p>

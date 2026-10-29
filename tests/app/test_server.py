@@ -58,6 +58,16 @@ def test_start_automatically_prepares_multiple_replay_steps(server):
     assert initial['cursor'] == 0 and initial['grid'] == puzzle
 
 
+def test_local_uniqueness_check(server):
+    puzzle = '034678912672195348198342567859761423426853791713924856961537284287419635345286179'
+    status, result = post(server, '/api/check', {'puzzle': puzzle})
+    assert status == 200
+    assert result == {'status': 'unique', 'solution_count': 1, 'count_is_exact': True}
+    assert post(server, '/api/check', {'puzzle': '0' * 81})[1]['status'] == 'multiple'
+    assert post(server, '/api/check', {'puzzle': '11' + '0' * 79})[0] == 400
+    assert not server.sessions
+
+
 def test_api_rejects_bad_input_and_cross_origin_requests(server):
     assert post(server, '/api/start', {'puzzle': '11' + '0' * 79})[0] == 400
     assert post(server, '/api/start', {'puzzle': '0' * 81, 'allow_uniqueness': 'yes'})[0] == 400

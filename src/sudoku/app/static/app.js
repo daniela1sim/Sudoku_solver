@@ -19,6 +19,15 @@ let draft = Array(81).fill('0'), selected = 0, session = null, view = null;
 let busy = false, playing = false, timer = null;
 let catalogReady = false;
 let imageReview = null;
+let puzzleCheck = null;
+function renderPuzzleCheck() {
+  if (puzzleCheck && puzzleCheck.puzzle !== draft.join('')) puzzleCheck = null;
+  $('check-result').textContent = puzzleCheck ? {
+    unique: 'Verified: exactly one solution.',
+    unsatisfiable: 'No solution: these clues cannot be completed. Review the grid.',
+    multiple: 'Multiple solutions: at least two completions exist.'
+  }[puzzleCheck.status] : '';
+}
 function clearImageReview() {
   imageReview = null;
   $('image-review').hidden = true;
@@ -71,6 +80,7 @@ function controls() {
     $(id).disabled = busy;
   }
   $('start').disabled = busy || !catalogReady || (imageReview && !$('image-confirm').checked);
+  $('check-puzzle').disabled = busy || !!session || (imageReview && !$('image-confirm').checked);
   $('read-image').disabled = $('puzzle-image').disabled = busy;
   $('image-confirm').disabled = busy;
   $('unique').disabled = busy;
@@ -91,7 +101,7 @@ function controls() {
 async function request(path, body) {
   busy = true;
   controls();
-  notice(path === '/api/image' ? 'Reading the puzzle image…' : 'Checking the logic…', true);
+  notice(path === '/api/image' ? 'Reading the puzzle image…' : path === '/api/check' ? 'Checking solvability and uniqueness…' : 'Checking the logic…', true);
   try {
     const response = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
     const data = await response.json();
@@ -108,6 +118,7 @@ async function request(path, body) {
   }
 }
 function renderBoard() {
+  renderPuzzleCheck();
   const grid = session ? view.grid : draft.join('');
   const givens = new Set(session ? view.givens.map(index) : []);
   // A nudge must not leak the move through colors or crossed-out notes.
@@ -355,6 +366,15 @@ $('start').onclick = async () => {
   if (busy || (imageReview && !$('image-confirm').checked)) return;
   const data = await request('/api/start', {puzzle: draft.join(''), allow_uniqueness: $('unique').checked, techniques: selectedTechniques()});
   if (data) { session = data.session; view = data; render(); }
+};
+$('check-puzzle').onclick = async () => {
+  if (busy || session || (imageReview && !$('image-confirm').checked)) return;
+  const puzzle = draft.join('');
+  puzzleCheck = null;
+  renderPuzzleCheck();
+  const data = await request('/api/check', {puzzle});
+  if (data && puzzle === draft.join('')) puzzleCheck = {puzzle, status: data.status};
+  renderPuzzleCheck();
 };
 $('image-confirm').onchange = controls;
 $('read-image').onclick = async () => {

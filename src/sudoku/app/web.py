@@ -50,7 +50,7 @@ def create_app(public_url=None):
             return jsonify(error='Use the application URL'), 403
         if request.mimetype != 'application/json':
             return jsonify(error='Expected JSON'), 415
-        if operation not in ('start', 'action', 'image'):
+        if operation not in ('start', 'action', 'image', 'check'):
             return jsonify(error='Not found'), 404
         limit = app.config['MAX_CONTENT_LENGTH'] if operation == 'image' else 4096
         request.max_content_length = limit
