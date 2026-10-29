@@ -18,6 +18,8 @@ verified logical-technique subsets, not standardized human difficulty ratings:
 This generator only accepts puzzles with exactly one solution according to
 ReferenceSolver. All accepted solutions and metrics are independently checked.
 No network, external puzzle datasets, or third-party Python packages needed.
+Run scripts/rate_puzzles.py afterward to add full-solver rating metadata;
+the generation and rating stages are intentionally separate.
 """
 
 from __future__ import annotations

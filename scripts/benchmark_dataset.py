@@ -52,7 +52,8 @@ def benchmark(path: Path, *, per_tier: int, repeats: int, algorithms: list[str],
     }
 
     writer = csv.DictWriter(sys.stdout, fieldnames=(
-        "id", "difficulty", "givens", "algorithm", "median_seconds", "median_search_nodes",
+        "id", "difficulty", "givens", "rating_status", "rating_score", "hardest_technique",
+        "algorithm", "median_seconds", "median_search_nodes",
         "status", "used_fallback", "logical_steps",
     ))
     writer.writeheader()
@@ -81,6 +82,9 @@ def benchmark(path: Path, *, per_tier: int, repeats: int, algorithms: list[str],
                         nodes.append(count)
             writer.writerow({
                 "id": record["id"], "difficulty": record["difficulty"], "givens": record["givens"],
+                "rating_status": record.get("rating", {}).get("status", "not_rated"),
+                "rating_score": record.get("rating", {}).get("score"),
+                "hardest_technique": record.get("rating", {}).get("hardest_technique"),
                 "algorithm": name, "median_seconds": f"{median(elapsed):.6f}",
                 "median_search_nodes": f"{median(nodes):g}" if nodes else "NA",
                 "status": "solved", "used_fallback": str(result.used_fallback).lower() if name == "hybrid" else "NA",

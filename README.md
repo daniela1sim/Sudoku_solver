@@ -1175,3 +1175,7 @@ python -m pytest tests/ -q
 
 Background: [SudokuWiki: AIC with ALSs](https://www.sudokuwiki.org/AIC_with_ALSs)
 and [Sudopedia: Alternating Inference Chain](https://sudopedia.sudocue.net/index.php?title=Alternating_Inference_Chain).
+
+## Dataset rating enrichment
+
+The corpus now includes local difficulty ratings from the full default logical solver. Run `python scripts/rate_puzzles.py` to enrich an existing corpus, or add `--force` to recalculate ratings. Each puzzle runs in a separate process with a configurable timeout, and progress is saved atomically. Incomplete or timed-out solves receive no final score. Dataset benchmarks now include rating status, score, and hardest technique. See [dataset documentation](data/README.md#local-logical-difficulty-ratings) for configuration and reproduction details.
